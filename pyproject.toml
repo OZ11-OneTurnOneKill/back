@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "study-with-ai"
+version = "0.1.0"
+description = ""
+authors = ["yoo-sh-96 <tmdguq90051@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+fastapi = {extras = ["standard"], version = "^0.116.1"}
+pydantic-settings = "^2.10.1"
+tortoise-orm = "^0.25.1"
+aerich = "^0.9.1"
+asyncpg = "^0.30.0"
+
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.17.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
