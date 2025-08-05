@@ -16,6 +16,9 @@ asyncpg = "^0.30.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.17.1"
+black = "^25.1.0"
+ruff = "^0.12.7"
+pytest = "^8.4.1"
 
 [build-system]
 requires = ["poetry-core"]
