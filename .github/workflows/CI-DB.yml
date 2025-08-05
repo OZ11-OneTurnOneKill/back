@@ -1,0 +1,64 @@
+name: CI-DB
+on:
+  push:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest # 가장 최신 버전의 ubuntu os 사용
+    services:
+      # DB setting
+      db:
+        image: postgres:17
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PW }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code # 코드 가져오기
+              # : 해당 레포지토리의 코드를 runner 환경(가상의 Ubuntu)에 다운로드
+        uses: actions/checkout@v3 # GitHub Actions 중 하나를 사용
+
+      - name: Set up Python # CI 환경에서 사용할 파이썬 버전 지정
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Poetry # CI 환경에 poetry 설치
+        run: curl -sSL https://install.python-poetry.org | python3
+
+      - name: Poetry Setting # 환경 변수에 경로 추가
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Poetry Install dev # poetry 환경에 개발 의존성 추가
+        run: poetry install --with dev
+
+      - name: Wait for Postgres # DB 연결 확인
+        run: |
+          until pg_isready -h localhost -p 5432 -U "${{ secrets.POSTGRES_USER }}"; do
+            echo "Waiting for Postgres....:)"
+            sleep 2
+          done
+          
+      - name: .env # 환경 구성
+        run: |
+          echo "DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}" >> $GITHUB_ENV
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PW }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+
+      - name: Aerich init-db # DB 초기화 코드 (init, migrate 한 후, 이 부분 삭제 해야함!!!)
+        run: |
+          poetry run aerich init-db
+          poetry run aerich migrate
+
+      - name: Run aerich migrations # db 연결 확인 후 마이그레이션 수행
+        run: |
+          poetry run aerich upgrade

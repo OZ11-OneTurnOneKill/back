@@ -1,0 +1,31 @@
+name: CI-style
+on:
+  push:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest # 가장 최신 버전의 ubuntu os 사용
+    steps:
+      - name: Checkout code # 코드 가져오기
+              # : 해당 레포지토리의 코드를 runner 환경(가상의 Ubuntu)에 다운로드
+        uses: actions/checkout@v3 # GitHub Actions 중 하나를 사용
+
+      - name: Set up Python # CI 환경에서 사용할 파이썬 버전 지정
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Poetry # CI 환경에 poetry 설치
+        run: curl -sSL https://install.python-poetry.org | python3
+
+      - name: Poetry Setting # 환경 변수에 경로 추가
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Poetry Install dev # poetry 환경에 개발 의존성 추가
+        run: poetry install --with dev
+        # 코드 품질 관리 Tool 실행
+      - name: ruff # 사전 린팅 및 Import 정렬
+        run: ruff check . --fix
+
+      - name: black # 코드 스타일 통일
+        run: black .
