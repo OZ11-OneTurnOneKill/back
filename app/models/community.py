@@ -3,9 +3,9 @@ from tortoise import fields, Model
 from app.models.base_model import BaseModel
 
 class CategoryType(str, Enum):
-    STUDY_RECRUITMENT = "study recruitment"
-    FREE_BOARD = "free board"
-    DATA_SHARE = "data share"
+    STUDY = "study"
+    FREE = "free"
+    SHARE = "share"
 
 class PostModel(BaseModel, Model):
     user = fields.ForeignKeyField(
