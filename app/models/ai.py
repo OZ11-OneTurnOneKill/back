@@ -1,8 +1,8 @@
-from tortoise import fields
-from back.app.models.base_model import BaseModel
+from tortoise import fields, Model
+from app.models.base_model import BaseModel
 
 
-class AIStudyPlan(BaseModel):
+class AIStudyPlan(Model, BaseModel):
     user = fields.ForeignKeyField("models.UserModel", on_delete=fields.CASCADE, null=False) # 유저 식별자 / FK
     is_challenge = fields.BooleanField(default=False, null=False) # 챌린지 여부
     input_data = fields.TextField(null=False)      # 사용자 prompt

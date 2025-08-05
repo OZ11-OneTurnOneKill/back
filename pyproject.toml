@@ -12,6 +12,7 @@ pydantic-settings = "^2.10.1"
 tortoise-orm = "^0.25.1"
 aerich = "^0.9.1"
 asyncpg = "^0.30.0"
+python-dotenv = "^1.1.1"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -23,3 +24,8 @@ pytest = "^8.4.1"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.aerich]
+tortoise_orm = "app.configs.tortoise_config.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./."

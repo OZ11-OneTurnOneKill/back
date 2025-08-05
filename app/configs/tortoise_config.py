@@ -2,9 +2,14 @@ from fastapi import FastAPI
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import register_tortoise
 
-from app.configs import config
+from app.configs import Config
+
+config = Config()
 
 TORTOISE_APP_MODELS = [
+    "app.models.ai",
+    "app.models.community",
+    "app.models.user",
     "aerich.models",
 ]
 
@@ -22,9 +27,7 @@ TORTOISE_ORM = {
         },
     },
     "apps": {
-        "models": {
-            "models": TORTOISE_APP_MODELS,
-        },
+        "models": {"models": TORTOISE_APP_MODELS},
     },
     "timezone": "Asia/Seoul",
 }

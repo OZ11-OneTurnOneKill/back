@@ -67,7 +67,7 @@ class LikeModel(BaseModel, Model):
         table = "likes"
 
 
-class StudyRecruitmentModel(BaseModel, Model):
+class StudyRecruitmentModel(Model):
     post = fields.OneToOneField(
         "models.PostModel",
         related_name="study_recruitment",
@@ -83,7 +83,7 @@ class StudyRecruitmentModel(BaseModel, Model):
         table = "study_recruitments"
 
 
-class FreeBoardModel(BaseModel, Model):
+class FreeBoardModel(Model):
     post = fields.OneToOneField(
         "models.PostModel",
         related_name="free_board",
@@ -95,7 +95,7 @@ class FreeBoardModel(BaseModel, Model):
         table = "free_boards"
 
 
-class DataShareModel(BaseModel, Model):
+class DataShareModel(Model):
     class DataShareModel(BaseModel):
         post = fields.OneToOneField(
             "models.PostModel",
