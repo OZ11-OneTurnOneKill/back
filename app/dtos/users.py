@@ -23,7 +23,8 @@ class SocialAccountModel(BaseModel):
 
 class RefreshTokenModel(BaseModel):
     user : int # usermodel FK
-    access_token : str
-    refresh_token : str
+    token : str
+    # access_token : str
+    # refresh_token : str
     expires_at : datetime
     revoked : bool # 토큰 취소 여부 -> 로그아웃 여부 : 로그아웃 시 True로 변경
