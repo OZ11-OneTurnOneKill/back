@@ -33,11 +33,12 @@ KST = timezone("Asia/Seoul")
 #     }
 
 # 조회수 캐시 (카테고리, post_id) 기준
-post_views = {}
-post_likes = {} # {(post_id, user_id): True}
-post_like_counts = {} # {post_id: like_count}
-recruit_end_cache = {}
-post_author_map = {} # post_id: author_id
+posts_store = {}          # {post_id: dict}
+post_author_map = {}      # {post_id: author_id}
+post_views = {}           # {post_id: int}
+post_likes = {}           # {(post_id, user_id): True}
+post_like_counts = {}     # {post_id: int}
+recruit_end_cache = {}    # {post_id: datetime}
 # ===== 스터디 모집 =====
 @router.post("/post/study", response_model=StudyPostResponse)
 async def create_study_post(body: StudyPostRequest):
@@ -70,7 +71,7 @@ async def create_study_post(body: StudyPostRequest):
 
 @router.get("/post/study/{post_id}", response_model=StudyPostResponse)
 async def get_study_post(post_id: int):
-    now = datetime.now()
+    now = datetime.now(KST)
     key = ("study", post_id)
 
     # 현재 조회수 가져오기
@@ -115,7 +116,12 @@ async def update_study_post(post_id: int, body: StudyPostUpdateRequest):
 
     key = ("study", post_id)
     views = post_views.get(key, 0)
-    author_id = post_author_map.get(post_id, 123)
+    author_id = post_author_map.get(post_id, 0)
+
+    if body.recruit_end:
+        recruit_end_cache[post_id] = (
+            KST.localize(body.recruit_end) if body.recruit_end.tzinfo is None else body.recruit_end
+        )
     return {
         "id": post_id,
         "title": body.title or "기존 제목",
@@ -158,7 +164,7 @@ async def join_study_post(post_id: int, body: StudyJoinRequest):
 # ===== 자유게시판 =====
 @router.post("/post/free", response_model=FreePostResponse)
 async def create_free_post(body: FreePostRequest):
-    now = datetime.now()
+    now = datetime.now(KST)
     post_id = len(post_author_map) + 1
     post_author_map[post_id] = body.user_id
     # ✅ 조회수 초기화
@@ -180,7 +186,7 @@ async def create_free_post(body: FreePostRequest):
 # ===== 자료공유 =====
 @router.post("/post/share", response_model=SharePostResponse)
 async def create_share_post(body: SharePostRequest):
-    now = datetime.now()
+    now = datetime.now(KST)
     # ✅ post_id 생성 (auto-increment 방식)
     post_id = len(post_author_map) + 1
     # ✅ 작성자 ID 저장
@@ -204,7 +210,7 @@ async def create_share_post(body: SharePostRequest):
 # ===== 댓글 =====
 @router.post("/post/{post_id}/comment", response_model=CommentResponse)
 async def create_comment(post_id: int, body: CommentRequest):
-    now = datetime.now()
+    now = datetime.now(KST)
     post_author_id = post_author_map.get(post_id)
     return {
         "id": 1,
@@ -250,3 +256,73 @@ async def toggle_like(post_id: int, body: LikeToggleRequest):
         "likes": post_like_counts[post_id],
         "liked": True
     }
+
+
+@router.put("/post/free/{post_id}", response_model=FreePostResponse)
+async def update_free_post(post_id: int, body: FreePostRequest):
+    if post_id not in post_author_map:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    key = ("free", post_id)
+    views = post_views.get(key, 0)
+    now = datetime.now(KST)
+
+    author_id = post_author_map.get(post_id, body.user_id)
+
+    return {
+        "id": post_id,
+        "title": body.title,
+        "content": body.content,
+        "category": "free",
+        "author_id": author_id,
+        "views": views,
+        "free_board": {"image_url": body.image_url},
+        "created_at": now,   # mock이라 그대로 now로
+        "updated_at": now,
+    }
+
+
+@router.put("/post/share/{post_id}", response_model=SharePostResponse)
+async def update_share_post(post_id: int, body: SharePostRequest):
+    if post_id not in post_author_map:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    key = ("share", post_id)
+    views = post_views.get(key, 0)
+    now = datetime.now(KST)
+
+    author_id = post_author_map.get(post_id, body.user_id)
+
+    return {
+        "id": post_id,
+        "title": body.title,
+        "content": body.content,
+        "category": "share",
+        "author_id": author_id,
+        "views": views,
+        "data_share": {"file_url": body.file_url},
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+@router.delete("/post/{post_id}")
+async def delete_post(post_id: int):
+    if post_id not in post_author_map:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # 메인 식별자 존재하면 연결된 캐시/맵 정리
+    post_author_map.pop(post_id, None)
+    recruit_end_cache.pop(post_id, None)
+    post_like_counts.pop(post_id, None)
+
+    # views : 카테고리별 키 제거
+    for cat in ("study", "free", "share"):
+        post_views.pop((cat, post_id), None)
+
+    # likes : (post_id, user_id) 전체 제거
+    to_remove = [k for k in list(post_likes.keys()) if k[0] == post_id]
+    for k in to_remove:
+        post_likes.pop(k, None)
+
+    return {"id": post_id, "deleted": True}

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Literal
 from pydantic import BaseModel, field_validator
 from pydantic_core.core_schema import ValidationInfo
 from datetime import datetime
@@ -14,7 +14,7 @@ from datetime import datetime
 class StudyPostRequest(BaseModel):
     title: str
     content: str
-    category: str = "study"
+    category: Literal["study"] = "study"
     user_id: int
     recruit_start: datetime
     recruit_end: datetime
@@ -41,7 +41,7 @@ class StudyPostRequest(BaseModel):
 class FreePostRequest(BaseModel):
     title: str
     content: str
-    category: str = "free"
+    category: Literal["free"] = "free"
     user_id: int
     image_url: str | None = None
 
@@ -50,9 +50,9 @@ class FreePostRequest(BaseModel):
 class SharePostRequest(BaseModel):
     title: str
     content: str
-    category: str = "share"
+    category: Literal["share"] = "share"
     user_id: int
-    file_url: str
+    file_url: str | None = None
 
 
 class StudyPostUpdateRequest(BaseModel):
