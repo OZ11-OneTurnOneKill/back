@@ -15,6 +15,7 @@ class StudyPostRequest(BaseModel):
     title: str
     content: str
     category: str = "study"
+    user_id: int
     recruit_start: datetime
     recruit_end: datetime
     study_start: datetime
@@ -41,6 +42,7 @@ class FreePostRequest(BaseModel):
     title: str
     content: str
     category: str = "free"
+    user_id: int
     image_url: str | None = None
 
 
@@ -49,6 +51,7 @@ class SharePostRequest(BaseModel):
     title: str
     content: str
     category: str = "share"
+    user_id: int
     file_url: str
 
 
@@ -66,3 +69,12 @@ class CommentRequest(BaseModel):
     post_id: int
     content: str
     parent_id: Optional[int] = None
+    user_id: int
+
+
+class StudyJoinRequest(BaseModel):
+    user_id: int
+
+
+class LikeToggleRequest(BaseModel):
+    user_id: int
