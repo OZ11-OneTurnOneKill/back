@@ -14,7 +14,7 @@ class UserModel(BaseModel, Model):
         null=False
     )
     nickname = fields.CharField(max_length=8, unique=True, null=False)
-    profile_image_url = fields.CharField(max_length=255, null=True)
+    profile_image_url = fields.TextField(null=True)
     is_active = fields.BooleanField(default=True, null=False)
     is_superuser = fields.BooleanField(default=False, null=False)
     class Meta:

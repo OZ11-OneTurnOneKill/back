@@ -29,6 +29,7 @@ TORTOISE_ORM = {
     "apps": {
         "models": {"models": TORTOISE_APP_MODELS},
     },
+    "use_tz": True,
     "timezone": "Asia/Seoul",
 }
 
