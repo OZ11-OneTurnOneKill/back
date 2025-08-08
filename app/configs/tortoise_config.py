@@ -7,7 +7,7 @@ from app.configs import Config
 config = Config()
 
 TORTOISE_APP_MODELS = [
-    "app.models.ai",
+    "app.models.ai_study_plan",
     "app.models.community",
     "app.models.user",
     "aerich.models",
