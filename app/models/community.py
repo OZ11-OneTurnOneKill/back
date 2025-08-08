@@ -90,19 +90,18 @@ class FreeBoardModel(Model):
         on_delete=fields.CASCADE,
         pk=True
     )
-    image_url = fields.CharField(max_length=255, null=True)
+    image_url = fields.TextField(null=True)
     class Meta:
         table = "free_boards"
 
 
 class DataShareModel(Model):
-    class DataShareModel(BaseModel):
-        post = fields.OneToOneField(
-            "models.PostModel",
-            related_name="data_share",
-            on_delete=fields.CASCADE,
-            pk=True
-        )
-        file_url = fields.CharField(max_length=255, null=True)
-        class Meta:
-            table = "data_shares"
+    post = fields.OneToOneField(
+        "models.PostModel",
+        related_name="data_share",
+        on_delete=fields.CASCADE,
+        pk=True
+    )
+    file_url = fields.TextField(null=True)
+    class Meta:
+        table = "data_shares"
