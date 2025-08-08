@@ -335,5 +335,5 @@ pip-selfcheck.json
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,python,pycharm,venv,dotenv
 
-# env
-.env
+# google
+client_secrets.json
