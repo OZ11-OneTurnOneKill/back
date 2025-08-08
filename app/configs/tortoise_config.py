@@ -7,6 +7,9 @@ from app.configs import Config
 config = Config()
 
 TORTOISE_APP_MODELS = [
+    "app.models.ai",
+    "app.models.community",
+    "app.models.user",
     "aerich.models",
 ]
 
@@ -24,10 +27,9 @@ TORTOISE_ORM = {
         },
     },
     "apps": {
-        "models": {
-            "models": TORTOISE_APP_MODELS,
-        },
+        "models": {"models": TORTOISE_APP_MODELS},
     },
+    "use_tz": True,
     "timezone": "Asia/Seoul",
 }
 
