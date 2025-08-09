@@ -18,7 +18,7 @@ from app.dtos.community_dtos.community_response import (
     # CommonPostResponse,
     CommentResponse
 )
-from app.services.notification_manager import notification_manager
+from app.services.community_services.notification_manager import notification_manager
 
 router = APIRouter(prefix="/api/community", tags=["Community"])
 
