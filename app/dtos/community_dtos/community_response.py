@@ -51,7 +51,7 @@ class FreePostResponse(BaseModel):
 
 # ===== 자료공유 응답 DTO =====
 class DataShareResponse(BaseModel):
-    file_url: str
+    file_url: Optional[str] = None
 
 
 class SharePostResponse(BaseModel):
