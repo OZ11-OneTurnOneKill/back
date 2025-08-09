@@ -65,6 +65,8 @@ class LikeModel(BaseModel, Model):
     )
     class Meta:
         table = "likes"
+        unique_together = (("post", "user"),)
+        indexes = (("post_id",), ("user_id",),)
 
 
 class StudyRecruitmentModel(Model):
