@@ -1,17 +1,34 @@
-# import hashlib
-
+import os
+from dotenv import load_dotenv
 import google.oauth2.credentials
-import google_auth_oauthlib.flow # 사용자 승인
+from google_auth_oauthlib.flow import Flow # 사용자 승인
 from fastapi import Request, HTTPException
-from starlette.responses import RedirectResponse
 
+
+load_dotenv()
+
+client_secrets = os.getenv('GOOGLE_CLIENT_SECRET')
+client_id = os.getenv('GOOGLE_CLIENT_ID')
+redirect_uri = os.getenv('GOOGLE_REDIRECT_URIS')
+auth_uri = os.getenv('GOOGLE_AUTH_URI')
+token_uri = os.getenv('GOOGLE_TOKEN_URI')
+
+client_config = {
+    'web': {
+        'client_id': client_id,
+        'client_secrets': client_secrets,
+        'auth_uri': auth_uri,
+        'token_uri': token_uri,
+        'redirect_uri': [redirect_uri],
+    }
+}
 
 #### OAuth2.0 액세스 토큰 가져오기
 # app이 Google OAuth2.0 서버와 상호작용, 사용자를 대신해 API 요청을 실행하기 위한 동의를 받음.
 async def create_authorization_url():
     # 사용자 인증 정보를 만든 후, 다운 받은 client_secret.json 파일 정보를 사용, 애플리케이션 식별하는 flow 객체를 만든다.
-    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        'client_secrets.json',
+    flow = Flow.from_client_config(
+        client_config=client_config,
         scopes=[  # 어떤 정보에 접근을 할 수 있는지 지정
             'https://www.googleapis.com/auth/userinfo.email',  # 기본 Google 계정 이메일 주소
             'https://www.googleapis.com/auth/userinfo.profile',  # 공개로 설정한 개인정보 전부 포함이 된 프로필
@@ -21,7 +38,7 @@ async def create_authorization_url():
 
     # 리디렉션할 위치 지정
     flow.redirect_uri = 'http://localhost:8000/auth/google/login/callback'
-    # flow.redirect_uri = 'https://kimshineday.github.io/maroo-maroo-maroo/'
+
     # Google OAuth 2.0 서버 요청을 위한 URL 생성, kwargs 사용해 선택적 요청 매개변수 설정.
     authorization_url, state = flow.authorization_url(
         access_type='offline',  # 엑세스 토큰을 새로 고칠 수 있다, access_token과 refresh_token 발급
@@ -33,4 +50,59 @@ async def create_authorization_url():
 
     return authorization_url
 
+# 미들웨어 추가 >> start
+# state 기능이 있다..? 라이브러리에...?,
+#   -> google_auth_oauthlib에 기본적으로 가지고 있다고 함.
+
+
+
+# access token 교환
+async def access_token(request: Request):
+    # 승인 서버 응답 확인
+    try:
+        state = request.session['state']
+    except KeyError:
+        return {'error': 'Session을 찾지 못했습니다.'}
+
+    flow = Flow.from_client_config(
+        client_config=client_config,
+        scopes=[  # 어떤 정보에 접근을 할 수 있는지 지정
+            'https://www.googleapis.com/auth/userinfo.email',  # 기본 Google 계정 이메일 주소
+            'https://www.googleapis.com/auth/userinfo.profile',  # 공개로 설정한 개인정보 전부 포함이 된 프로필
+            'openid'  # google에서 내 개인 정보를 나와 연결, 사용자 정보와 연관된 고유한 식별자 ID 발급.
+        ],
+        state=state # flow에 client_secrets 파일과 scopes와 state를 담아 전달.
+    )
+    flow.redirect_uri = request.url_for('callback') # 동적으로 리다이렉트할 url 생성, 구글이 이 주소로
+    authorization_response = str(request.url) # 인증 코드를 보냄
+
+    # flow.fetch_token 메서드 사용, 해당 응답의 승인코드를 토큰으로 교환
+    flow.fetch_token(authorization_response=authorization_response) # 함수 호출 (동기식)
+
+    # 자격증명 저장
+    credentials = flow.credentials
+    request.session['credentials'] = {
+        'token': credentials.token,
+        'refresh_token' : credentials.refresh_token,
+        'token_uri' : credentials.token_uri,
+        'client_id' : credentials.client_id,
+        'client_secret' : credentials.client_secret,
+        'granted_scopes' : credentials.granted_scopes,
+    }
+    return # 토큰 저장, 별도의 반환 없이 함수 종료
+
+
+# 사용자가 부여한 권한 확인하기.
+async def check_granted_scopes(credentials):
+    features = {}
+    if 'https://www.googleapis.com/auth/userinfo.email' in credentials['granted_scopes']:
+        features['email'] = True
+    else:
+        features['email'] = False
+    if 'https://www.googleapis.com/auth/userinfo.profile' in credentials['granted_scopes']:
+        features['profile'] = True
+    else:
+        features['profile'] = False
+
+    return features
 

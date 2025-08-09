@@ -1,13 +1,14 @@
-from fastapi import APIRouter
-from google.auth.transport.urllib3 import Request
+from pyexpat import features
+
+from fastapi import APIRouter, Request
 from starlette.responses import RedirectResponse
 
 from app.dtos import users
 from app.dtos.users import SocialAccountModel
 from app.models import user
-from app.services.google_login import create_authorization_url, access_token
+from app.services.google_login import create_authorization_url, access_token, check_granted_scopes
 
-router = APIRouter(prefix="auth/google/login")
+router = APIRouter(prefix="/auth/google/login")
 
 
 # OAuth2.0 액세스 토큰 가져오기
@@ -18,3 +19,10 @@ router = APIRouter(prefix="auth/google/login")
 async def get_authorization_url() -> RedirectResponse:
     authorization_url = await create_authorization_url()
     return RedirectResponse(authorization_url)
+
+@router.get("/callback")
+async def get_access_token(request: Request) -> RedirectResponse: # access token 교환
+    credentials = await access_token(request)
+    features = check_granted_scopes(credentials)
+    return RedirectResponse(url='/myinfo')
+
