@@ -6,7 +6,7 @@ from app.models.base_model import BaseModel
 class StudyPlan(Model, BaseModel):
     """AI 학습계획 테이블"""
 
-    user_id = fields.BigIntField(description="유저 식별자 / FK")
+    user_id = fields.ForeignKeyField(description="유저 식별자 / FK")
     is_challenge = fields.BooleanField(default=False, description="챌린지 수행 여부")
     input_data = fields.TextField(description="유저 질문 (프롬프트)")
     output_data = fields.TextField(null=True, description="AI 답변")
@@ -14,7 +14,7 @@ class StudyPlan(Model, BaseModel):
     end_date = fields.DatetimeField(description="공부 계획 일정 끝나는 날")
 
     class Meta:
-        table = "ai_study_plan"
+        table = "ai_study_plans"
 
     def __str__(self):
         return f"<StudyPlan(id={self.id}, user_id={self.user_id}, is_challenge={self.is_challenge})>"
@@ -29,7 +29,7 @@ class ChallengeProgress(Model, BaseModel):
         on_delete=fields.CASCADE,
         description="공부 계획 식별자 / FK"
     )
-    user_id = fields.BigIntField(description="유저 식별자 / FK")
+    user_id = fields.ForeignKeyField(description="유저 식별자 / FK")
     status = fields.CharField(
         max_length=50,
         null=True,
