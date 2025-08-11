@@ -30,9 +30,9 @@ async def get_or_create_user(user_info, social_account):
     # 이메일이나 소셜계정 기준으로 유저 조회 (필요한 조건으로 변경 가능)
     user = await UserModel.filter(social_account=social_account).first()
 
-    base_nickname = user_info.get('name') or "user"
+    base_nickname = '반가워요'
     random_suffix = random.randint(1000, 9999)
-    nickname = f"{base_nickname}_{random_suffix}"
+    nickname = f"{base_nickname}{random_suffix}"
 
     if not user:
         user = await UserModel.create(
@@ -78,9 +78,9 @@ async def save_google_userdata(credentials: Credentials):
 
         user = await get_or_create_user(user_info, social_account)
 
-        base_nickname = user_info.get('name') or "user"
+        base_nickname = '반가워요'
         random_suffix = random.randint(1000, 9999)
-        nickname = f"{base_nickname}_{random_suffix}"
+        nickname = f"{base_nickname}{random_suffix}"
 
         if created == True:
             # 회원 정보 DB에 등록
