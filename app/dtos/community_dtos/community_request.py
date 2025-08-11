@@ -1,5 +1,5 @@
 from typing import Optional, Literal
-from pydantic import BaseModel, field_validator, Field, ConfigDict, AliasChoices
+from pydantic import BaseModel, field_validator, Field, ConfigDict, AliasChoices, constr
 from pydantic_core.core_schema import ValidationInfo
 from datetime import datetime
 
@@ -80,15 +80,20 @@ class SharePostUpdateRequest(BaseModel):
 
 
 class CommentRequest(BaseModel):
-    post_id: int
-    content: str
-    parent_id: Optional[int] = None
-    user_id: int
+    model_config = ConfigDict(extra='forbid')
+    content: constr(max_length=50)
+    parent_comment_id: Optional[int] = Field(
+        default=None,
+        validation_alias=AliasChoices("parent_comment_id", "parent_id")
+    )
+
+
+class CommentUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    content: constr(max_length=50)
 
 
 class StudyJoinRequest(BaseModel):
     user_id: int
 
 
-class LikeToggleRequest(BaseModel):
-    user_id: int
