@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request
 from starlette.responses import RedirectResponse
 from google.oauth2.credentials import Credentials
 
-router = APIRouter(prefix='/api/v1/users')
+router = APIRouter(prefix='/api/v1/users', tags=['Users'])
 
 @router.get('/myinfo')
 async def get_myinfo(request:Request) -> dict:

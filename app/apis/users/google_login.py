@@ -6,7 +6,7 @@ from app.services.users.users import save_google_userdata
 from google.oauth2.credentials import Credentials
 
 
-router = APIRouter(prefix="/api/v1/users/auth/google")
+router = APIRouter(prefix="/api/v1/users/auth/google", tags=["Google"])
 
 
 # OAuth2.0 액세스 토큰 가져오기
@@ -39,7 +39,7 @@ async def post_revoke(request: Request) -> RedirectResponse:
     # return '라우터 문제는 아닌가봐.'
 
 
-@router.get('/myinfo')
+"""@router.get('/myinfo')
 async def get_myinfo(request:Request) -> dict:
     content = {'나는 로그인을 원한다.':'아니 로그인 되는건가?'}
 
@@ -62,3 +62,4 @@ async def get_myinfo(request:Request) -> dict:
 
     return user_info
 
+"""
