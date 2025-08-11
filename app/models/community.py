@@ -7,6 +7,12 @@ class CategoryType(str, Enum):
     FREE = "free"
     SHARE = "share"
 
+
+class ApplicationStatus(str, Enum):
+    RECRUITING = "recruiting"
+    COMPLETED = "completed"
+
+
 class PostModel(BaseModel, Model):
     user = fields.ForeignKeyField(
         "models.UserModel",
@@ -107,3 +113,53 @@ class DataShareModel(Model):
     file_url = fields.TextField(null=True)
     class Meta:
         table = "data_shares"
+
+
+class StudyApplicationModel(BaseModel, Model):
+    post = fields.ForeignKeyField(
+        "models.PostModel",
+        related_name="applications",
+        on_delete=fields.CASCADE,
+        null=False,
+    )
+    user = fields.ForeignKeyField(
+        "models.UserModel",
+        related_name="study_applications",
+        on_delete=fields.CASCADE,
+        null=False,
+    )
+    status = fields.CharEnumField(ApplicationStatus, default="recruiting", null=False)
+
+    class Meta:
+        table = "study_applications"
+        # 같은 유저가 같은 스터디 글에 중복 신청 금지
+        unique_together = (("post", "user"),)
+        # 조회 성능용 인덱스
+        indexes = (("post_id",), ("user_id",), ("status", "post_id"))
+
+    def __str__(self) -> str:
+        return f"<StudyApplication post={self.post_id} user={self.user_id} status={self.status}>"
+
+
+class NotificationModel(BaseModel, Model):
+    user = fields.ForeignKeyField(
+        "models.UserModel",
+        related_name="notifications",
+        on_delete=fields.CASCADE,
+        null=False,
+    )
+    application = fields.ForeignKeyField(
+        "models.StudyApplicationModel",
+        related_name="notifications",
+        on_delete=fields.CASCADE,
+        null=False,
+    )
+    message = fields.CharField(max_length=255, null=False)
+    is_read = fields.BooleanField(default=False, null=False)
+
+    class Meta:
+        table = "notifications"
+        indexes = (("user_id", "is_read"), ("application_id",))
+
+    def __str__(self) -> str:
+        return f"<Notification user={self.user_id} app={self.application_id} read={self.is_read}>"

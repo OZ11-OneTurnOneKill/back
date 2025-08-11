@@ -11,4 +11,4 @@ class AIStudyPlan(Model, BaseModel):
     end_date = fields.DatetimeField(null=False)    # 학습 종료일
 
     class Meta:
-        table = "ai_study_plan"
+        table = "ai_study_plans"
