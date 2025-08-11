@@ -5,7 +5,7 @@ from starlette.responses import RedirectResponse
 from app.dtos import users
 from app.dtos.users import SocialAccountModel
 from app.models import user
-from app.services.google_login import create_authorization_url, access_token, info # revoke
+from app.services.google_login import create_authorization_url, access_token, info, revoke
 
 from google.oauth2.credentials import Credentials
 
@@ -29,12 +29,16 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
     mypage_url = '/api/v1/users/auth/google/login/myinfo'
     return RedirectResponse(mypage_url)
 
-"""
+
 @router.post('/revoke')
+@router.get('/revoke') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
 async def post_revoke(request: Request) -> RedirectResponse:
+    print('라우터에서의 함수 실행 완')
     await revoke(request)
+    print('토큰 삭제 함수 실행 완')
     return RedirectResponse(url='/')
-"""
+    # return '라우터 문제는 아닌가봐.'
+
 
 @router.get('/myinfo')
 async def get_myinfo(request:Request) -> dict:

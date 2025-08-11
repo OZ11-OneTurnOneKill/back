@@ -1,11 +1,14 @@
 import asyncio
 import httpx
 import os
+import json
 from concurrent.futures.thread import ThreadPoolExecutor
 from dotenv import load_dotenv
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow # 사용자 승인
 from fastapi import Request, HTTPException
+from starlette.responses import RedirectResponse
+
 
 load_dotenv()
 
@@ -122,14 +125,15 @@ async def info(credentials: Credentials): # 구글API에 사용자 정보 요청
 
         return user_info
 
-"""
+
 async def revoke(request: Request):
     if 'credentials' not in request.session: # 세션에 저장된 데이터가 없을 경우
-        return RedirectResponse(url='api/v1/users/auth/google/login')
+        print('세션 데이터 일치하지 않습니다. 확인 필요.')
+        return RedirectResponse(url='/')
 
     credentials = Credentials.from_authorized_user_info(
         json.loads(request.session.get('credentials'))
-    )
+    ) # 세션에서 데이터를 가져옴.
 
     # 비동기 HTTP 클라이언트인 httpx를 사용
     async with httpx.AsyncClient() as client:
@@ -144,8 +148,8 @@ async def revoke(request: Request):
         # 로그아웃 성공 시 세션 데이터 삭제
         del request.session['credentials']
         # 성공 메시지 반환 또는 홈으로 리디렉션
-        return RedirectResponse(url='/')
+        print('로그아웃은 되었는데 여기선 확인을 못하는듯...')
+        return RedirectResponse(url='/') # 로그아웃 성공 시 루트 페이지로 이동.
     else:
         # 로그아웃 실패 시 오류 메시지 반환
         return '로그아웃에 문제가 생겼습니다.'
-"""
