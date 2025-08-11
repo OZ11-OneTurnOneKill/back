@@ -1,34 +1,36 @@
 import json
 from fastapi import APIRouter, Request
 from starlette.responses import RedirectResponse
-
 from app.services.users.google_login import create_authorization_url, access_token, info, revoke
-
+from app.services.users.users import save_google_userdata
 from google.oauth2.credentials import Credentials
 
-router = APIRouter(prefix="/api/v1/users/auth/google/login")
+
+router = APIRouter(prefix="/api/v1/users/auth/google")
 
 
 # OAuth2.0 액세스 토큰 가져오기
 # app이 Google OAuth2.0 서버와 상호작용, 사용자를 대신해 API 요청을 실행하기 위한 동의를 받음.
 # @router.post("auth/google/login")
 # async def google_login_post()
-@router.get("", description='authorization_url 생성') # 로그인 및 권한 동의 페이지 URL 생성
+@router.get("/login", description='authorization_url 생성') # 로그인 및 권한 동의 페이지 URL 생성
 async def get_authorization_url(request:Request) -> RedirectResponse:
     authorization_url = await create_authorization_url(request)
     return RedirectResponse(authorization_url)
 
-@router.get("/callback", name='callback') # 구글에게 로그인 관련 데이터를 받음
+@router.get("/login/callback", name='callback') # 구글에게 로그인 관련 데이터를 받음
 async def get_access_token(request: Request) -> RedirectResponse: # access token 교환
     credentials = await access_token(request)
     print(f'콜백에서 받은 credentials : {credentials}')
     # features = check_granted_scopes(credentials)
+
+    social_account = await save_google_userdata(credentials)
+
     mypage_url = '/api/v1/users/myinfo'
     return RedirectResponse(mypage_url)
 
-
-@router.post('/revoke')
-@router.get('/revoke') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
+@router.post('/logout')
+@router.get('/logout') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
 async def post_revoke(request: Request) -> RedirectResponse:
     print('라우터에서의 함수 실행 완')
     await revoke(request)

@@ -8,7 +8,7 @@ class ProviderType(str, Enum):
     GOOGLE = "google"
     KAKAO = "kakao"
 
-class UserModel(BaseModel):
+class User(BaseModel):
     social_account : int # SocialAccountModel FK
     # social_account : SocialAccountModel
     nickname : str = Field(..., min_length=1, max_length=8) # 닉네임 : 8글자 제한
@@ -16,12 +16,12 @@ class UserModel(BaseModel):
     is_active : bool = True # 사용자 계정 활성화 여부 : 필드 생략 시, True 설정
     is_superuser : bool = False # 관리자 계정 여부 : 필드 생략 시, False 설정
 
-class SocialAccountModel(BaseModel):
+class SocialAccount(BaseModel):
     provider : ProviderType # 소셜 로그인 종류 : Enum으로 데이터 값을 받음 (google, kakao)
     provider_id : str # 소셜 로그인 아이디
     email : EmailStr # 이메일
 
-class RefreshTokenModel(BaseModel):
+class RefreshToken(BaseModel):
     user : int # usermodel FK
     token : str
     # access_token : str

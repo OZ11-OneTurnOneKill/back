@@ -54,8 +54,11 @@ async def auth_middleware(request: Request, call_next):
     return await call_next(request) # fastapi에서 가지고 있는 함수
 """
 router = APIRouter()
+
 @router.get('/')
 async def root():
     return {'시작해볼까':'좋지'}
+
+app.include_router(router)
 
 initialize_tortoise(app=app)
