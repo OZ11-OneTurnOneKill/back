@@ -112,7 +112,7 @@ async def check_granted_scopes(credentials):
     # return features
     return features
 
-
+# profile data
 async def info(credentials: Credentials): # 구글API에 사용자 정보 요청
     async with httpx.AsyncClient() as client:
         response = await client.get(
