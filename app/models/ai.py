@@ -6,7 +6,11 @@ from app.models.base_model import BaseModel
 class StudyPlan(Model, BaseModel):
     """AI 학습계획 테이블"""
 
-    user_id = fields.ForeignKeyField(description="유저 식별자 / FK")
+    user_id = fields.ForeignKeyField(
+        "models.UserModel",
+        on_delete=fields.CASCADE,
+        null=False,
+        description="유저 식별자 / FK")
     is_challenge = fields.BooleanField(default=False, description="챌린지 수행 여부")
     input_data = fields.TextField(description="유저 질문 (프롬프트)")
     output_data = fields.TextField(null=True, description="AI 답변")
@@ -29,7 +33,11 @@ class ChallengeProgress(Model, BaseModel):
         on_delete=fields.CASCADE,
         description="공부 계획 식별자 / FK"
     )
-    user_id = fields.ForeignKeyField(description="유저 식별자 / FK")
+    user_id = fields.ForeignKeyField(
+        "models.UserModel",
+        on_delete=fields.CASCADE,
+        null=False,
+        description="유저 식별자 / FK")
     status = fields.CharField(
         max_length=50,
         null=True,
