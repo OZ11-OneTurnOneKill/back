@@ -1,4 +1,5 @@
 import httpx
+import random
 from app.dtos.users import SocialAccount, User
 from app.models.user import SocialAccountModel, UserModel
 from google.oauth2.credentials import Credentials
@@ -19,6 +20,9 @@ async def info(credentials: Credentials): # 구글API에 사용자 정보 요청
         return user_info
 
 
+
+
+
 async def get_or_create_user(user_info, social_account):
     # user_info는 구글에서 받은 유저 데이터 (dict)
     # social_account는 SocialAccountModel 인스턴스
@@ -26,9 +30,13 @@ async def get_or_create_user(user_info, social_account):
     # 이메일이나 소셜계정 기준으로 유저 조회 (필요한 조건으로 변경 가능)
     user = await UserModel.filter(social_account=social_account).first()
 
+    base_nickname = user_info.get('name') or "user"
+    random_suffix = random.randint(1000, 9999)
+    nickname = f"{base_nickname}_{random_suffix}"
+
     if not user:
         user = await UserModel.create(
-            nickname=user_info.get('name', 'anonymous'),
+            nickname=nickname,
             profile_image_url=user_info.get('picture'),
             social_account=social_account,
             is_active=True,
@@ -41,29 +49,14 @@ async def get_or_create_user(user_info, social_account):
     return user
 
 
-async def get_google_user_data(credentials: Credentials):
+"""async def get_google_user_data(credentials: Credentials):
     async with httpx.AsyncClient() as client:
         response = await client.get(
             'https://www.googleapis.com/oauth2/v2/userinfo',
             headers={'Authorization': f'Bearer {credentials.token}'}
         )
         response.raise_for_status()
-        return response.json()
-
-
-# async def save_userdata(user_info : dict) -> SocialAccountModel:
-#     provider='google', # 직접 설정
-#     provider_id = user_info.get('id'), # google에서 제공하는 id
-#     email= user_info.get('email'), # google에서 제공하는 email
-#
-#     user, created = await SocialAccountModel.get_or_create(
-#         provider=provider,
-#         provider_id=provider_id,
-#         email = email,
-#     )
-#
-#     return user
-
+        return response.json()"""
 
 
 async def save_google_userdata(credentials: Credentials):
@@ -85,6 +78,10 @@ async def save_google_userdata(credentials: Credentials):
 
         user = await get_or_create_user(user_info, social_account)
 
+        base_nickname = user_info.get('name') or "user"
+        random_suffix = random.randint(1000, 9999)
+        nickname = f"{base_nickname}_{random_suffix}"
+
         if created == True:
             # 회원 정보 DB에 등록
             # new_google_user = await SocialAccount.create(
@@ -94,7 +91,7 @@ async def save_google_userdata(credentials: Credentials):
             # )
             new_user = await UserModel.create(
                 social_account=social_account,
-                nickname=user_info['name'],
+                nickname=nickname,
                 profile_image_url=user_info['picture'],
                 is_active=True,
                 is_superuser=False,
