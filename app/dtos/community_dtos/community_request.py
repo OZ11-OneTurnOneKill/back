@@ -1,5 +1,5 @@
 from typing import Optional, Literal
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field, ConfigDict, AliasChoices
 from pydantic_core.core_schema import ValidationInfo
 from datetime import datetime
 
@@ -56,6 +56,7 @@ class SharePostRequest(BaseModel):
 
 
 class StudyPostUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
     title: Optional[str] = None
     content: Optional[str] = None
     study_start: Optional[datetime] = None
@@ -63,6 +64,19 @@ class StudyPostUpdateRequest(BaseModel):
     recruit_start: Optional[datetime] = None
     recruit_end: Optional[datetime] = None
     max_member: Optional[int] = None
+
+class FreePostUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    title: Optional[str] = None
+    content: Optional[str] = None
+    image_url: Optional[Optional[str]] = None  # null로 보내면 제거
+
+
+class SharePostUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    title: Optional[str] = None
+    content: Optional[str] = None
+    file_url: Optional[Optional[str]] = None  # null로 보내면 제거
 
 
 class CommentRequest(BaseModel):

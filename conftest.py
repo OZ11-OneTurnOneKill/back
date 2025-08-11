@@ -3,7 +3,7 @@ import httpx
 from app import app   # FastAPI 앱 (app/__init__.py 에 있는 app)
 from tortoise.contrib.test import initializer, finalizer
 
-from app.apis.community_router import post_views
+from app.apis.community.common_router import post_views
 
 
 @pytest.fixture(scope="session", autouse=True)
