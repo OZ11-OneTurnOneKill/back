@@ -1,7 +1,6 @@
-import pytest
 from httpx import AsyncClient
 from datetime import datetime, timedelta
-from app.services.notification_manager import notification_manager
+from app.services.community_services.notification_manager import notification_manager
 from pytz import timezone
 
 KST = timezone("Asia/Seoul")
