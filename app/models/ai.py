@@ -19,7 +19,6 @@ class StudyPlan(Model, BaseModel):
 
     class Meta:
         table = "ai_study_plans"
-        table = "ai_study_plans"
 
     def __str__(self):
         return f"<StudyPlan(id={self.id}, user_id={self.user_id}, is_challenge={self.is_challenge})>"
