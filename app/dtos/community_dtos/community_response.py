@@ -74,3 +74,9 @@ class CommentResponse(BaseModel):
     parent_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+
+
+class CommentListResponse(BaseModel):
+        total: int
+        count: int
+        items: list[CommentResponse]
