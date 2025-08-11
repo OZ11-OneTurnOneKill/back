@@ -6,7 +6,7 @@ from app.models.base_model import BaseModel
 class StudyPlan(Model, BaseModel):
     """AI 학습계획 테이블"""
 
-    user_id = fields.ForeignKeyField(
+    user = fields.ForeignKeyField(
         "models.UserModel",
         on_delete=fields.CASCADE,
         null=False,
@@ -33,7 +33,7 @@ class ChallengeProgress(Model, BaseModel):
         on_delete=fields.CASCADE,
         description="공부 계획 식별자 / FK"
     )
-    user_id = fields.ForeignKeyField(
+    user = fields.ForeignKeyField(
         "models.UserModel",
         on_delete=fields.CASCADE,
         null=False,
