@@ -42,7 +42,7 @@ async def create_authorization_url(request: Request):
     )
 
     # 리디렉션할 위치 지정
-    flow.redirect_uri = 'http://13.209.17.2/api/v1/user/auth/google/login/callback' # 개발서버
+    flow.redirect_uri = 'http://www.evida.site/api/v1/user/auth/google/login/callback' # 개발서버
 
     # Google OAuth 2.0 서버 요청을 위한 URL 생성, kwargs 사용해 선택적 요청 매개변수 설정.
     authorization_url, state = flow.authorization_url(
@@ -82,7 +82,7 @@ async def access_token(request: Request):
             'openid'  # google에서 내 개인 정보를 나와 연결, 사용자 정보와 연관된 고유한 식별자 ID 발급.
         ],
         state=state, # flow에 client_secrets 파일과 scopes와 state를 담아 전달.
-        redirect_uri='http://13.209.17.2/api/v1/users/auth/google/login/callback'
+        redirect_uri='http://www.evida.site/api/v1/users/auth/google/login/callback'
     )
     flow.redirect_uri = request.url_for('callback') # 동적으로 리다이렉트할 url 생성, 구글에게 이 주소로 결과를 보내달라고 요청
     authorization_response = str(request.url) # 인증 코드를 보냄
