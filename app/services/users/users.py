@@ -1,24 +1,40 @@
+import json
 import httpx
 import random
-from app.dtos.users import SocialAccount, User
+from app.dtos.users import SocialAccount, User, GetMyInfo
 from app.models.user import SocialAccountModel, UserModel
 from google.oauth2.credentials import Credentials
 
 
 # profile data
-async def info(credentials: Credentials): # 구글API에 사용자 정보 요청
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            'https://www.googleapis.com/oauth2/v2/userinfo',
-            headers={'Authorization': f'Bearer {credentials.token}'}
-        )
-        # print('요청에 문제가 발생했습니다.')
-        response.raise_for_status() # 요청 실패할 경우, 예외 발생
+# async def info(credentials: Credentials): # 구글API에 사용자 정보 요청
+#     async with httpx.AsyncClient() as client:
+#         response = await client.get(
+#             'https://www.googleapis.com/oauth2/v2/userinfo',
+#             headers={'Authorization': f'Bearer {credentials.token}'}
+#         )
+#         # print('요청에 문제가 발생했습니다.')
+#         response.raise_for_status() # 요청 실패할 경우, 예외 발생
+#
+#         user_info = response.json() # json으로 데이터 받아옴.
+#
+#         return user_info
 
-        user_info = response.json() # json으로 데이터 받아옴.
 
-        return user_info
-
+async def get_info(user_id : int) -> GetMyInfo:
+    info = await UserModel.get(id=user_id).select_related('social_account')
+    print(GetMyInfo(
+        id=info.id,
+        nickname=info.nickname,  # Social Account
+        profile_image_url=info.social_account.profile_image_url,  # Social Account
+        email=info.social_account.email,
+    ))
+    return GetMyInfo(
+        id = info.id,
+        nickname = info.nickname, # Social Account
+        profile_image_url = info.social_account.profile_image_url,  # Social Account
+        email = info.social_account.email,
+    )
 
 
 
