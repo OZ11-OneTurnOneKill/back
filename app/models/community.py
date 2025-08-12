@@ -80,7 +80,7 @@ class StudyRecruitmentModel(Model):
     post = fields.OneToOneField(
         "models.PostModel",
         related_name="study_recruitment",
-        on_delete=fields.CASCADE,
+        on_delete=fields.RESTRICT,
         pk=True
     )
     recruit_start = fields.DatetimeField(null=False)
@@ -96,7 +96,7 @@ class FreeBoardModel(Model):
     post = fields.OneToOneField(
         "models.PostModel",
         related_name="free_board",
-        on_delete=fields.CASCADE,
+        on_delete=fields.RESTRICT,
         pk=True
     )
     image_url = fields.TextField(null=True)
@@ -108,7 +108,7 @@ class DataShareModel(Model):
     post = fields.OneToOneField(
         "models.PostModel",
         related_name="data_share",
-        on_delete=fields.CASCADE,
+        on_delete=fields.RESTRICT,
         pk=True
     )
     file_url = fields.TextField(null=True)
