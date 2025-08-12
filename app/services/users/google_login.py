@@ -42,7 +42,7 @@ async def create_authorization_url(request: Request):
     )
 
     # 리디렉션할 위치 지정
-    flow.redirect_uri = 'http://www.evida.site/api/v1/user/auth/google/login/callback' # 개발서버
+    flow.redirect_uri = 'http://www.evida.site/api/v1/users/auth/google/login/callback' # 개발서버
 
     # Google OAuth 2.0 서버 요청을 위한 URL 생성, kwargs 사용해 선택적 요청 매개변수 설정.
     authorization_url, state = flow.authorization_url(
