@@ -7,7 +7,7 @@ class ProviderType(str, Enum):
     KAKAO = "kakao"
 
 class UserModel(BaseModel, Model):
-    social_account = fields.ForeignKeyField(
+    social_account = fields.OneToOneField(
         "models.SocialAccountModel",
         related_name="users",
         on_delete=fields.CASCADE,
@@ -28,7 +28,7 @@ class SocialAccountModel(BaseModel, Model):
         table = "social_accounts"
 
 class RefreshTokenModel(BaseModel, Model):
-    user = fields.ForeignKeyField(
+    user = fields.OneToOneField(
         "models.UserModel",
         related_name="refresh_tokens",
         on_delete=fields.CASCADE,
