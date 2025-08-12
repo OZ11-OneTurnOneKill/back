@@ -9,8 +9,9 @@ class CategoryType(str, Enum):
 
 
 class ApplicationStatus(str, Enum):
-    RECRUITING = "recruiting"
-    COMPLETED = "completed"
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
 
 
 class PostModel(BaseModel, Model):
@@ -128,7 +129,7 @@ class StudyApplicationModel(BaseModel, Model):
         on_delete=fields.CASCADE,
         null=False,
     )
-    status = fields.CharEnumField(ApplicationStatus, default="recruiting", null=False)
+    status = fields.CharEnumField(ApplicationStatus, default=ApplicationStatus.pending.value, null=False)
 
     class Meta:
         table = "study_applications"

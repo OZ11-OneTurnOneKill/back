@@ -1,11 +1,11 @@
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from tortoise.exceptions import DoesNotExist
-
 from app.core.dev_auth import get_current_user_dev
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import FreePostRequest, FreePostUpdateRequest
 from app.dtos.community_dtos.community_response import FreePostResponse
+from app.services.community_services.community_get_service import service_list_posts_cursor
 from app.utils.post_mapper import to_free_response
 from app.services.community_services import community_post_service as post_svc
 from app.services.community_services.community_post_service import service_update_free_post
@@ -24,6 +24,15 @@ async def create_free_post(body: FreePostRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/post/free/list-cursor")
+async def list_free_posts_cursor(
+    q: str | None = Query(None),
+    cursor: int | None = Query(None),
+):
+    return await service_list_posts_cursor(category="free", q=q, cursor=cursor)
+
 
 @router.get("/post/free/{post_id}", response_model=FreePostResponse)
 async def get_free_post(post_id: int):

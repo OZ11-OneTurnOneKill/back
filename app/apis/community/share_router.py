@@ -1,11 +1,11 @@
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from tortoise.exceptions import DoesNotExist
-
 from app.core.dev_auth import get_current_user_dev
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import SharePostRequest, SharePostUpdateRequest
 from app.dtos.community_dtos.community_response import SharePostResponse
+from app.services.community_services.community_get_service import service_list_posts_cursor
 from app.services.community_services.community_post_service import service_update_share_post
 from app.utils.post_mapper import to_share_response
 from app.services.community_services import community_post_service as post_svc
@@ -24,6 +24,15 @@ async def create_share_post(body: SharePostRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/post/share/list-cursor")
+async def list_share_posts_cursor(
+    q: str | None = Query(None),
+    cursor: int | None = Query(None),
+):
+    return await service_list_posts_cursor(category="share", q=q, cursor=cursor)
+
 
 @router.get("/post/share/{post_id}", response_model=SharePostResponse)
 async def get_share_post(post_id: int):
