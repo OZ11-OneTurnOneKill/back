@@ -93,7 +93,16 @@ class CommentUpdateRequest(BaseModel):
     content: constr(max_length=50)
 
 
-class StudyJoinRequest(BaseModel):
-    user_id: int
+class ApplicationCreateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    message: Optional[str] = None
 
+
+class ApplicationResponse(BaseModel):
+    id: int
+    post_id: int
+    user_id: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
 

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from tortoise.exceptions import DoesNotExist
 
 from app.core.dev_auth import get_current_user_dev
@@ -7,11 +7,15 @@ from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import (
     StudyPostRequest,
     StudyPostUpdateRequest,
-    StudyJoinRequest
+    ApplicationResponse,
+    ApplicationCreateRequest
 )
 from app.dtos.community_dtos.community_response import StudyPostResponse
+from app.services.community_services.community_get_service import service_list_posts_cursor
 from app.services.community_services.community_post_service import service_update_study_post
 from app.services.community_services import community_post_service as post_svc
+from app.services.community_services.study_application_service import service_apply_to_study, \
+    service_approve_application, service_reject_application
 from app.utils.post_mapper import to_study_response
 from app.apis.community._state import (
     KST, post_author_map, recruit_end_cache, post_views, notification_manager
@@ -34,6 +38,14 @@ async def create_study_post(body: StudyPostRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/post/study/list-cursor")
+async def list_study_posts_cursor(
+    q: str | None = Query(None),
+    cursor: int | None = Query(None),
+):
+    return await service_list_posts_cursor(category="study", q=q, cursor=cursor)
+
 
 @router.get("/post/study/{post_id}", response_model=StudyPostResponse)
 async def get_study_post(post_id: int):
@@ -69,18 +81,15 @@ async def patch_study_post(
         # 서비스 내부에서 DoesNotExist가 그대로 올라오는 경우 대비
         raise HTTPException(status_code=404, detail="Post not found")
 
-@router.post("/post/study/{post_id}/join")
-async def join_study_post(post_id: int, body: StudyJoinRequest):
-    now = datetime.now(KST)
-    recruit_end_from_db = recruit_end_cache.get(post_id)
-    if recruit_end_from_db and getattr(recruit_end_from_db, "tzinfo", None) is None:
-        recruit_end_from_db = recruit_end_from_db.replace(tzinfo=KST)
-    if recruit_end_from_db and recruit_end_from_db < now:
-        raise HTTPException(403, "모집이 마감된 스터디입니다.")
 
-    author_id = post_author_map.get(post_id)
-    notification_manager.send_notification(
-        user_id=author_id,
-        message=f"{body.user_id}님이 스터디 {post_id}에 참여하였습니다."
-    )
-    return {"message": f"User {body.user_id} joined study {post_id}!"}
+@router.post("/post/{post_id}/study-application", response_model=ApplicationResponse)
+async def apply_to_study(post_id: int, body: ApplicationCreateRequest, current_user=Depends(get_current_user_dev)):
+    return await service_apply_to_study(post_id=post_id, user_id=current_user.id, message=body.message)
+
+@router.post("/study-application/{application_id}/approve", response_model=ApplicationResponse)
+async def approve_application(application_id: int, current_user=Depends(get_current_user_dev)):
+    return await service_approve_application(application_id=application_id, owner_id=current_user.id)
+
+@router.post("/study-application/{application_id}/reject", response_model=ApplicationResponse)
+async def reject_application(application_id: int, current_user=Depends(get_current_user_dev)):
+    return await service_reject_application(application_id=application_id, owner_id=current_user.id)
