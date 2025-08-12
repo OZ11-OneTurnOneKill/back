@@ -5,7 +5,7 @@ from tortoise.expressions import Q
 from tortoise.functions import Count
 
 from app.core.constants import PAGE_SIZE
-from app.models.community import PostModel, StudyRecruitmentModel
+from app.models.community import PostModel, StudyRecruitmentModel, DataShareModel, FreeBoardModel
 from app.models.community import StudyApplicationModel, ApplicationStatus  # pending/approved/rejected
 
 KST = timezone("Asia/Seoul")
@@ -32,6 +32,13 @@ async def service_list_posts_cursor(
     category: RequestCategory = "all",
     q: Optional[str] = None,
     cursor: Optional[int] = None,
+    author_id: Optional[int] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    # 카테고리 전용 필터
+    badge: Optional[Literal["모집중", "모집완료"]] = None,  # study 전용
+    has_image: Optional[bool] = None,  # free 전용
+    has_file: Optional[bool] = None,  # share 전용
 ) -> Dict[str, Any]:
     # 1) 기본 쿼리
     qs = PostModel.all() if category == "all" else PostModel.filter(category=category)
@@ -39,11 +46,16 @@ async def service_list_posts_cursor(
         qs = qs.filter(id__lt=cursor)  # 최신 → 과거
     if q:
         qs = qs.filter(Q(title__icontains=q) | Q(content__icontains=q))
+    if author_id is not None:
+        qs = qs.filter(user_id=author_id)
+    if date_from is not None:
+        qs = qs.filter(created_at__gte=date_from)
+    if date_to is not None:
+        qs = qs.filter(created_at__lt=date_to)
 
     posts = await qs.order_by("-id").limit(PAGE_SIZE)
-
     # 2) 공통 요약 필드
-    items = [{
+    items: List[Dict[str, Any]] = [{
         "id": p.id,
         "category": p.category,
         "title": p.title,
@@ -52,14 +64,12 @@ async def service_list_posts_cursor(
         "created_at": p.created_at,
     } for p in posts]
 
-    # 3) study에만 배지(모집중/모집완료) 붙이기
+    # 3) study 배지(모집중/모집완료) 붙이기
     study_ids = [it["id"] for it in items if it["category"] == "study"]
     if study_ids:
-        # 모집 정보 배치 조회
         srs = await StudyRecruitmentModel.filter(post_id__in=study_ids)
         sr_map = {sr.post_id: sr for sr in srs}
 
-        # 승인된 신청 수 집계
         approved_rows = await (
             StudyApplicationModel
             .filter(post_id__in=study_ids, status=ApplicationStatus.approved.value)
@@ -69,7 +79,6 @@ async def service_list_posts_cursor(
         )
         approved_map = {r["post_id"]: int(r["approved"]) for r in approved_rows}
 
-        # 아이템에 배지/remaining 추가
         for it in items:
             if it["category"] != "study":
                 continue
@@ -77,18 +86,44 @@ async def service_list_posts_cursor(
             if not sr:
                 continue
             approved = approved_map.get(it["id"], 0)
-            badge = compute_recruit_badge(
+            b = compute_recruit_badge(
                 recruit_start=sr.recruit_start,
                 recruit_end=sr.recruit_end,
                 max_member=sr.max_member,
                 approved_count=approved,
             )
-            if badge is not None:
+            if b is not None:
                 it.update({
-                    "badge": badge,                              # "모집중" | "모집완료"
-                    "remaining": max(0, sr.max_member - approved),  # 옵션
-                    "max_member": sr.max_member,                    # 옵션
+                    "badge": b,                                 # "모집중" | "모집완료"
+                    "remaining": max(0, sr.max_member - approved),  # (옵션)
+                    "max_member": sr.max_member,                    # (옵션)
                 })
+
+        # (선택) 배지 필터 적용
+        if category in ("all", "study") and badge in ("모집중", "모집완료"):
+            items = [it for it in items if it.get("badge") == badge]
+
+    # 4) free: 이미지 유무 필터
+    if category in ("all", "free") and has_image is not None:
+        free_ids = [it["id"] for it in items if it["category"] == "free"]
+        if free_ids:
+            rows = await FreeBoardModel.filter(post_id__in=free_ids).values_list("post_id", "image_url")
+            with_image = {pid for (pid, url) in rows if url}
+            if has_image:
+                items = [it for it in items if (it["category"] != "free") or (it["id"] in with_image)]
+            else:
+                items = [it for it in items if (it["category"] != "free") or (it["id"] not in with_image)]
+
+    # 5) share: 파일 유무 필터
+    if category in ("all", "share") and has_file is not None:
+        share_ids = [it["id"] for it in items if it["category"] == "share"]
+        if share_ids:
+            rows = await DataShareModel.filter(post_id__in=share_ids).values_list("post_id", "file_url")
+            with_file = {pid for (pid, url) in rows if url}
+            if has_file:
+                items = [it for it in items if (it["category"] != "share") or (it["id"] in with_file)]
+            else:
+                items = [it for it in items if (it["category"] != "share") or (it["id"] not in with_file)]
 
     return {
         "count": len(items),

@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+from typing import Optional, Literal
+
 from fastapi import APIRouter, HTTPException, Depends, Query
 from tortoise.exceptions import DoesNotExist
 
@@ -41,10 +43,17 @@ async def create_study_post(body: StudyPostRequest):
 
 @router.get("/post/study/list-cursor")
 async def list_study_posts_cursor(
-    q: str | None = Query(None),
-    cursor: int | None = Query(None),
+    q: Optional[str] = Query(None),
+    cursor: Optional[int] = Query(None),
+    author_id: Optional[int] = Query(None),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
+    badge: Optional[Literal["모집중","모집완료"]] = Query(None),
 ):
-    return await service_list_posts_cursor(category="study", q=q, cursor=cursor)
+    return await service_list_posts_cursor(
+        category="study", q=q, cursor=cursor,
+        author_id=author_id, date_from=date_from, date_to=date_to, badge=badge,
+    )
 
 
 @router.get("/post/study/{post_id}", response_model=StudyPostResponse)
