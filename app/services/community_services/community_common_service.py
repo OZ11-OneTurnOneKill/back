@@ -3,12 +3,22 @@ from fastapi import HTTPException, status
 from tortoise.transactions import in_transaction
 from tortoise.expressions import F
 from tortoise.exceptions import IntegrityError
-from app.models.community import PostModel, LikeModel, CommentModel
+
+from app.core.realtime import notification_broker
+from app.models.community import PostModel, LikeModel, CommentModel, NotificationModel, NotificationType
 from pytz import timezone
 from datetime import datetime
 
 
 KST = timezone("Asia/Seoul")
+
+
+def _val(x):
+    # Enum -> value, 나머지는 안전한 타입으로
+    if hasattr(x, "value"):
+        return x.value
+    return x
+
 
 async def service_get_like_info(*, post_id: int, user_id: Optional[int] = None) -> dict:
     post = await (
@@ -28,6 +38,8 @@ async def service_get_like_info(*, post_id: int, user_id: Optional[int] = None) 
     return res
 
 async def service_toggle_like_by_post_id(*, post_id: int, user_id: int) -> dict:
+    note_payload = None
+
     async with in_transaction() as tx:
         post = await PostModel.get_or_none(id=post_id).using_db(tx)
         if not post:
@@ -36,18 +48,55 @@ async def service_toggle_like_by_post_id(*, post_id: int, user_id: int) -> dict:
         existing = await LikeModel.get_or_none(post_id=post_id, user_id=user_id).using_db(tx)
         if existing:
             await existing.delete(using_db=tx)
-            if post.like_count > 0:
-                await PostModel.filter(id=post_id).using_db(tx).update(like_count=F("like_count") - 1)
+            await PostModel.filter(id=post_id).using_db(tx).update(like_count=F("like_count") - 1)
             liked, message = False, "unliked"
         else:
             await LikeModel.create(post_id=post_id, user_id=user_id, using_db=tx)
             await PostModel.filter(id=post_id).using_db(tx).update(like_count=F("like_count") + 1)
             liked, message = True, "liked"
 
-        post = await PostModel.get(id=post_id).using_db(tx)
+            # (알림 쓰는 경우) 본인 글이 아니면 저장/푸시
+            if hasattr(post, "user_id") and post.user_id != user_id:
+                try:
+                    note = await NotificationModel.create(
+                        user_id=post.user_id,
+                        post_id=post_id,
+                        application_id=None,
+                        type=_val(NotificationType.like),   # ← Enum 안전 변환
+                        message=f"사용자 {user_id}님이 게시글({post_id})에 좋아요를 눌렀습니다.",
+                        using_db=tx,
+                    )
+                    note_payload = {
+                        "target_user_id": post.user_id,
+                        "data": {
+                            "id": note.id,
+                            "type": _val(note.type),         # ← Enum 안전 변환
+                            "post_id": post_id,
+                            "message": note.message,
+                            "is_read": note.is_read,
+                            "created_at": note.created_at,
+                        },
+                    }
+                except Exception:
+                    note_payload = None
 
-    return {"post_id": post.id, "category": post.category, "like_count": post.like_count, "liked": liked, "message": message}
+        # 필요한 필드만 재조회
+        post = await PostModel.get(id=post_id).only("category", "like_count").using_db(tx)
 
+    # 커밋 후 푸시
+    if note_payload:
+        try:
+            await notification_broker.push(note_payload["target_user_id"], note_payload["data"])
+        except Exception:
+            pass
+
+    return {
+        "post_id": post_id,
+        "category": _val(post.category.value),   # ← Enum이면 .value 로
+        "like_count": post.like_count,
+        "liked": liked,
+        "message": message,
+    }
 
 async def service_delete_post_by_post_id(*, post_id: int, user_id: int) -> dict:
     async with in_transaction() as tx:
