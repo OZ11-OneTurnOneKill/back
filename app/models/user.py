@@ -7,25 +7,16 @@ class ProviderType(str, Enum):
     KAKAO = "kakao"
 
 class UserModel(BaseModel, Model):
-    social_account = fields.OneToOneField(
-        "models.SocialAccountModel",
-        related_name="users",
-        on_delete=fields.CASCADE,
-        null=False
-    )
+    provider = fields.CharEnumField(ProviderType, null=False)
+    provider_id = fields.CharField(max_length=50, null=False, unique=True)
+    email = fields.CharField(max_length=50, null=False, unique=True)
     nickname = fields.CharField(max_length=8, unique=True, null=False)
     profile_image_url = fields.TextField(null=True)
     is_active = fields.BooleanField(default=True, null=False)
     is_superuser = fields.BooleanField(default=False, null=False)
+
     class Meta:
         table = "users"
-
-class SocialAccountModel(BaseModel, Model):
-    provider = fields.CharEnumField(ProviderType, null=False)
-    provider_id = fields.CharField(max_length=50, null=False, unique=True)
-    email = fields.CharField(max_length=50, null=False, unique=True)
-    class Meta:
-        table = "social_accounts"
 
 class RefreshTokenModel(BaseModel, Model):
     user = fields.OneToOneField(

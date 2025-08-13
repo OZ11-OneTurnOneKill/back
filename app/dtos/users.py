@@ -28,3 +28,10 @@ class RefreshToken(BaseModel):
     # refresh_token : str
     expires_at : datetime
     revoked : bool # 토큰 취소 여부 -> 로그아웃 여부 : 로그아웃 시 True로 변경
+
+# myinfo 페이지에 출력될 데이터
+class GetMyInfo(BaseModel):
+    id : int
+    nickname :str # Social Account
+    profile_image_url : str # Social Account
+    email : EmailStr # User
