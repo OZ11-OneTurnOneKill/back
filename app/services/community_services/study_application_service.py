@@ -4,7 +4,7 @@ from pytz import timezone
 from datetime import datetime
 from tortoise.transactions import in_transaction
 from app.models.community import PostModel, StudyApplicationModel, NotificationModel, ApplicationStatus, \
-    StudyRecruitmentModel
+    StudyRecruitmentModel, NotificationType
 from app.core.realtime import notification_broker, NotificationBroker
 
 
@@ -53,7 +53,10 @@ async def service_apply_to_study(*, post_id: int, user_id: int, message: str | N
         )
 
         note = await NotificationModel.create(
-            user_id=post.user_id, application_id=app.id,
+            user_id=post.user_id,
+            application_id=app.id,
+            post_id=None,
+            type=NotificationType.application.value,  # ← 추가
             message=message or f"사용자 {user_id}가 스터디({post_id})에 신청했습니다.",
             using_db=tx,
         )
@@ -113,9 +116,14 @@ async def service_approve_application(*, application_id: int, owner_id: int) -> 
         await app.save(using_db=tx)
 
         note = await NotificationModel.create(
-            user_id=app.user_id, application_id=app.id,
-            message=f"스터디({post.id}) 신청이 승인되었습니다.", using_db=tx
+            user_id=app.user_id,
+            application_id=app.id,
+            post_id=None,
+            type=NotificationType.application.value,  # ← 추가
+            message=f"스터디({post.id}) 신청이 승인되었습니다.",
+            using_db=tx,
         )
+
         note_payload = {
             "target_user_id": app.user_id,
             "data": {
@@ -161,9 +169,12 @@ async def service_reject_application(*, application_id: int, owner_id: int) -> d
         note = await NotificationModel.create(
             user_id=app.user_id,
             application_id=app.id,
+            post_id=None,
+            type=NotificationType.application.value,  # ← 추가
             message=f"스터디({post.id}) 신청이 거절되었습니다.",
             using_db=tx,
         )
+
         note_payload = {
             "target_user_id": app.user_id,
             "data": {
