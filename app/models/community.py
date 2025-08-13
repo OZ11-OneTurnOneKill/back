@@ -28,7 +28,6 @@ class PostModel(BaseModel, Model):
     like_count = fields.BigIntField(null=False, default=0)
     comment_count = fields.BigIntField(null=False, default=0)
     is_active = fields.BooleanField(null=False, default=True)
-    deleted_at = fields.DatetimeField(null=True)
     class Meta:
         table = "posts"
 
@@ -80,7 +79,7 @@ class StudyRecruitmentModel(Model):
     post = fields.OneToOneField(
         "models.PostModel",
         related_name="study_recruitment",
-        on_delete=fields.RESTRICT,
+        on_delete=fields.CASCADE,
         pk=True
     )
     recruit_start = fields.DatetimeField(null=False)
@@ -96,7 +95,7 @@ class FreeBoardModel(Model):
     post = fields.OneToOneField(
         "models.PostModel",
         related_name="free_board",
-        on_delete=fields.RESTRICT,
+        on_delete=fields.CASCADE,
         pk=True
     )
     image_url = fields.TextField(null=True)
@@ -108,7 +107,7 @@ class DataShareModel(Model):
     post = fields.OneToOneField(
         "models.PostModel",
         related_name="data_share",
-        on_delete=fields.RESTRICT,
+        on_delete=fields.CASCADE,
         pk=True
     )
     file_url = fields.TextField(null=True)
