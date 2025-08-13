@@ -21,7 +21,7 @@ from app.configs.gemini_connect import gemini_api_key
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/api/study_plan",
+    prefix="/api/v1/ai/study_plan",
     tags=["AI Study Plan"],
     responses={404: {"description": "Not found"}}
 )

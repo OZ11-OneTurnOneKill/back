@@ -21,7 +21,7 @@ class GeminiService:
         """
         self.api_key = api_key
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
 
     # gemini_service.py의 generate_study_plan 메서드에 추가
 
