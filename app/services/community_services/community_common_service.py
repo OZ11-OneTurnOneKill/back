@@ -4,7 +4,11 @@ from tortoise.transactions import in_transaction
 from tortoise.expressions import F
 from tortoise.exceptions import IntegrityError
 from app.models.community import PostModel, LikeModel, CommentModel
+from pytz import timezone
+from datetime import datetime
 
+
+KST = timezone("Asia/Seoul")
 
 async def service_get_like_count_by_post_id(*, post_id: int) -> dict:
     post = await PostModel.get_or_none(id=post_id)
@@ -39,6 +43,7 @@ async def service_like_status(*, post_id: int, user_id: int) -> dict:
         raise HTTPException(status_code=404, detail="Post not found")
     liked = await LikeModel.filter(post_id=post_id, user_id=user_id).exists()
     return {"post_id": post_id, "category": post.category, "like_count": post.like_count, "liked": liked}
+
 
 async def service_delete_post_by_post_id(*, post_id: int, user_id: int) -> dict:
     async with in_transaction() as tx:
