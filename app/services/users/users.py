@@ -2,7 +2,7 @@ import json
 import httpx
 import random
 from app.dtos.users import SocialAccount, User, GetMyInfo
-from app.models.user import SocialAccountModel, UserModel
+from app.models.user import UserModel
 from google.oauth2.credentials import Credentials
 
 
@@ -22,18 +22,18 @@ from google.oauth2.credentials import Credentials
 
 
 async def get_info(user_id : int) -> GetMyInfo:
-    info = await UserModel.get(id=user_id).select_related('social_account')
+    info = await UserModel.get(id=user_id)
     print(GetMyInfo(
         id=info.id,
         nickname=info.nickname,  # Social Account
-        profile_image_url=info.social_account.profile_image_url,  # Social Account
-        email=info.social_account.email,
+        profile_image_url=info.profile_image_url,  # Social Account
+        email=info.email,
     ))
     return GetMyInfo(
         id = info.id,
         nickname = info.nickname, # Social Account
-        profile_image_url = info.social_account.profile_image_url,  # Social Account
-        email = info.social_account.email,
+        profile_image_url = info.profile_image_url,  # Social Account
+        email = info.email,
     )
 
 
@@ -86,7 +86,7 @@ async def save_google_userdata(credentials: Credentials):
         user_info = response.json()
 
         # DB에 등록된 데이터와 비교
-        social_account, created = await SocialAccountModel.get_or_create( # social_account=조회할 데이터 / created=DB에 해당 데이터(레코드) 여부 조회. (True일때 데이터 등록, 기존에 데이터 있을 경우 False 출력)
+        social_account, created = await UserModel.get_or_create( # social_account=조회할 데이터 / created=DB에 해당 데이터(레코드) 여부 조회. (True일때 데이터 등록, 기존에 데이터 있을 경우 False 출력)
             provider='google',
             provider_id=user_info['id'],
             email=user_info['email']
