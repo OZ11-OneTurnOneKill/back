@@ -18,3 +18,14 @@ class Config(BaseSettings):
     DB_USER: str = "postgres"
     DB_PASSWORD: str = "1234"
     DB_NAME: str = "study_with_ai"
+
+class Google(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
+
+    GOOGLE_CLIENT_SECRET: str = 'client_secret'
+    GOOGLE_CLIENT_ID: str = 'client_id'
+    GOOGLE_REDIRECT_URIS: str = 'redirect_uris'
+    GOOGLE_AUTH_URI: str = 'https://accounts.google.com/o/oauth2/auth'
+    GOOGLE_TOKEN_URI: str = 'https://accounts.google.com/o/oauth2/token'
+
+    REDIRECT_URI: str = 'uri'

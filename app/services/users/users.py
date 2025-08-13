@@ -39,22 +39,28 @@ async def get_info(user_id : int) -> GetMyInfo:
 
 
 
-async def get_or_create_user(user_info, social_account):
+async def get_or_create_user(user_info):
     # user_info는 구글에서 받은 유저 데이터 (dict)
     # social_account는 SocialAccountModel 인스턴스
 
-    # 이메일이나 소셜계정 기준으로 유저 조회 (필요한 조건으로 변경 가능)
-    user = await UserModel.filter(social_account=social_account).first()
+    # 이메일이나 소셜계정 기준으로 유저 조회
+    user = await UserModel.filter(email=user_info['email']).first()
 
-    base_nickname = '반가워요'
-    random_suffix = random.randint(1000, 9999)
-    nickname = f"{base_nickname}{random_suffix}"
+    if not user: # 기존 데이터에 없을 경우, 새로운 유저 생성.
+        base_nickname = '반가워요' # 기본 베이스 닉네임
+        while True:
+            random_suffix = random.randint(1000, 9999) # 랜덤으로 4자리 숫자를 출력, 기본 베이스 닉네임 뒤에 랜덤으로 생성된 숫자를 추가.
+            create_nickname = f"{base_nickname}{random_suffix}"
+            if not await UserModel.filter(nickname=create_nickname): # 유니크 설정 되어있는 닉네임, 중복 방지를 위한 DB 확인
+                nickname = create_nickname # 없을 경우 닉네임으로 생성
+                break
 
-    if not user:
         user = await UserModel.create(
+            provider='google',
+            provider_id=user_info.get('id'),
+            email=user_info.get('email'),
             nickname=nickname,
             profile_image_url=user_info.get('picture'),
-            social_account=social_account,
             is_active=True,
             is_superuser=False,
         )
@@ -76,6 +82,7 @@ async def get_or_create_user(user_info, social_account):
 
 
 async def save_google_userdata(credentials: Credentials):
+    # 구글 유저 데이터 가져오기
     async with httpx.AsyncClient() as client:
         url = 'https://www.googleapis.com/oauth2/v2/userinfo'
         response = await client.get(
@@ -85,37 +92,48 @@ async def save_google_userdata(credentials: Credentials):
         response.raise_for_status()
         user_info = response.json()
 
-        # DB에 등록된 데이터와 비교
-        social_account, created = await UserModel.get_or_create( # social_account=조회할 데이터 / created=DB에 해당 데이터(레코드) 여부 조회. (True일때 데이터 등록, 기존에 데이터 있을 경우 False 출력)
-            provider='google',
-            provider_id=user_info['id'],
-            email=user_info['email']
-        )
+        user = await get_or_create_user(user_info)
 
-        user = await get_or_create_user(user_info, social_account)
 
-        base_nickname = '반가워요'
-        random_suffix = random.randint(1000, 9999)
-        nickname = f"{base_nickname}{random_suffix}"
-
-        if created == True:
-            # 회원 정보 DB에 등록
-            # new_google_user = await SocialAccount.create(
-            #     provider='google',
-            #     provider_id=user_info['id'],
-            #     email=user_info['email']
-            # )
-            new_user = await UserModel.create(
-                social_account=social_account,
-                nickname=nickname,
-                profile_image_url=user_info['picture'],
-                is_active=True,
-                is_superuser=False,
-            )
-            social_account.user = new_user # 테이블간의 관계성 부여
-            await social_account.save() # DB 저장
-            print(f'{new_user.nickname} 유저 데이터가 저장 되었습니다.')
-
-        else:
-            await UserModel.fetch_related(social_account)
+        # # 닉네임 랜덤 생성
+        # base_nickname = '반가워요'
+        # random_suffix = random.randint(1000, 9999)
+        # nickname = f"{base_nickname}{random_suffix}"
+        #
+        #
+        # # DB에 등록된 데이터와 비교
+        # social_account, created = await UserModel.get_or_create( # social_account=조회할 데이터 / created=DB에 해당 데이터(레코드) 여부 조회. (True일때 데이터 등록, 기존에 데이터 있을 경우 False 출력)
+        #     provider='google',
+        #     provider_id=user_info['id'],
+        #     email=user_info['email'],
+        #     nickname=user_info['nickname'],
+        #     profile_image_url=user_info['picture'],
+        #     is_active=True,
+        #     is_superuser=False,
+        # )
+        #
+        # user = await get_or_create_user(user_info)
+        #
+        # if created == True:
+        #     # 회원 정보 DB에 등록
+        #     # new_google_user = await SocialAccount.create(
+        #     #     provider='google',
+        #     #     provider_id=user_info['id'],
+        #     #     email=user_info['email']
+        #     # )
+        #     new_user = await UserModel.create(
+        #         provider='google',
+        #         provider_id=user_info['id'],
+        #         email=user_info['email'],
+        #         nickname=nickname,
+        #         profile_image_url=user_info['picture'],
+        #         is_active=True,
+        #         is_superuser=False,
+        #     )
+        #     social_account.user = new_user # 테이블간의 관계성 부여
+        #     await social_account.save() # DB 저장
+        #     print(f'{new_user.nickname} 유저 데이터가 저장 되었습니다.')
+        #
+        # else:
+        #     await UserModel.fetch_related(social_account)
 

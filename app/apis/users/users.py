@@ -1,5 +1,5 @@
 import json
-from app.services.users.users import get_info
+from app.services.users.users import get_info, get_or_create_user
 from fastapi import APIRouter, Request
 from starlette.responses import RedirectResponse
 from google.oauth2.credentials import Credentials
@@ -8,8 +8,10 @@ from google.oauth2.credentials import Credentials
 router = APIRouter(prefix='/api/v1/users', tags=['Users'])
 
 @router.get('/myinfo')
-async def get_myinfo(user_id):
-    return await get_info(user_id)
+async def get_myinfo():
+    return '환영합니다:) 로그인 성공했습니다.'
+
+    # return await get_info(user_id)
 
 """async def get_myinfo(request:Request) -> dict:
     # session에 credentials 여부 확인
