@@ -2,29 +2,32 @@ import asyncio
 import httpx
 import os
 import json
+from app.configs.base_config import Google
 from concurrent.futures.thread import ThreadPoolExecutor
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow # 사용자 승인
 from fastapi import Request, HTTPException
 from starlette.responses import RedirectResponse
 
 
-load_dotenv()
+# load_dotenv()
 
-client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
-client_id = os.getenv('GOOGLE_CLIENT_ID')
-redirect_uri = os.getenv('GOOGLE_REDIRECT_URIS')
-auth_uri = os.getenv('GOOGLE_AUTH_URI')
-token_uri = os.getenv('GOOGLE_TOKEN_URI')
+# client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+# client_id = os.getenv('GOOGLE_CLIENT_ID')
+# redirect_uri = os.getenv('GOOGLE_REDIRECT_URIS')
+# auth_uri = os.getenv('GOOGLE_AUTH_URI')
+# token_uri = os.getenv('GOOGLE_TOKEN_URI')
+
+google = Google()
 
 client_config = {
     'web': {
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'auth_uri': auth_uri,
-        'token_uri': token_uri,
-        'redirect_uri': [redirect_uri],
+        'client_id': google.GOOGLE_CLIENT_ID,
+        'client_secret': google.GOOGLE_CLIENT_SECRET,
+        'auth_uri': google.GOOGLE_AUTH_URI,
+        'token_uri': google.GOOGLE_TOKEN_URI,
+        'redirect_uri': google.GOOGLE_REDIRECT_URIS,
     }
 }
 
@@ -42,7 +45,7 @@ async def create_authorization_url(request: Request):
     )
 
     # 리디렉션할 위치 지정
-    flow.redirect_uri = 'https://www.evida.site/api/v1/users/auth/google/login/callback' # 개발서버
+    flow.redirect_uri = google.REDIRECT_URI # 개발서버
 
     # Google OAuth 2.0 서버 요청을 위한 URL 생성, kwargs 사용해 선택적 요청 매개변수 설정.
     authorization_url, state = flow.authorization_url(
@@ -82,7 +85,7 @@ async def access_token(request: Request):
             'openid'  # google에서 내 개인 정보를 나와 연결, 사용자 정보와 연관된 고유한 식별자 ID 발급.
         ],
         state=state, # flow에 client_secrets 파일과 scopes와 state를 담아 전달.
-        redirect_uri='https://www.evida.site/api/v1/users/auth/google/login/callback'
+        redirect_uri=google.REDIRECT_URI
     )
     flow.redirect_uri = request.url_for('callback') # 동적으로 리다이렉트할 url 생성, 구글에게 이 주소로 결과를 보내달라고 요청
     authorization_response = str(request.url) # 인증 코드를 보냄
