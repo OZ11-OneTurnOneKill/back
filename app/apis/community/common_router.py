@@ -8,9 +8,8 @@ from app.apis.community._state import (
 )
 from datetime import datetime
 from app.services.community_services.community_common_service import (
-    service_get_like_count_by_post_id,
+    service_get_like_info,
     service_toggle_like_by_post_id,
-    service_like_status,
     service_delete_post_by_post_id, service_create_comment, service_list_comments, service_update_comment,
     service_delete_comment
 )
@@ -67,15 +66,13 @@ async def delete_comment(
 
 @router.get("/post/{post_id}/likes")
 async def read_like_count(post_id: int):
-    return await service_get_like_count_by_post_id(post_id=post_id)
+    return await service_get_like_info(post_id=post_id)
+
 
 @router.post("/post/{post_id}/like")
 async def toggle_like(post_id: int, current_user = Depends(get_current_user_dev)):
     return await service_toggle_like_by_post_id(post_id=post_id, user_id=current_user.id)
 
-@router.get("/post/{post_id}/like/status")
-async def like_status(post_id: int, current_user = Depends(get_current_user_dev)):
-    return await service_like_status(post_id=post_id, user_id=current_user.id)
 
 @router.delete("/post/{post_id}")
 async def delete_post(post_id: int, current_user = Depends(get_current_user_dev)):

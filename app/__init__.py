@@ -11,6 +11,7 @@ from app.apis.community.free_router import router as free_router
 from app.apis.community.share_router import router as share_router
 from app.apis.community.common_router import router as common_router
 from app.apis.community.post_router import router as post_router
+from app.apis.community.notification_ws_router import router as ws_router
 from app.apis.ai_study_plan.ai_study_plan_router import router as ai_study_plan_router
 # user
 from app.apis.users.users import router as users_router
@@ -36,6 +37,7 @@ app.include_router(study_router)
 app.include_router(free_router)
 app.include_router(share_router)
 app.include_router(common_router)
+app.include_router(ws_router)
 
 app.include_router(ai_study_plan_router)
 # user
