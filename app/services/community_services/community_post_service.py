@@ -261,10 +261,6 @@ async def service_update_study_post(
     return await service_compose_study_response(post, sr)
 
 
-from fastapi import HTTPException, status
-from typing import Optional
-from tortoise.transactions import in_transaction
-
 async def service_update_free_post(
     *,
     post_id: int,
