@@ -94,7 +94,7 @@ async def save_google_userdata(credentials: Credentials):
 
         user = await get_or_create_user(user_info)
 
-
+    return user
         # # 닉네임 랜덤 생성
         # base_nickname = '반가워요'
         # random_suffix = random.randint(1000, 9999)

@@ -4,7 +4,6 @@ import os
 import json
 from app.configs.base_config import Google
 from concurrent.futures.thread import ThreadPoolExecutor
-# from dotenv import load_dotenv
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow # 사용자 승인
 from fastapi import Request, HTTPException

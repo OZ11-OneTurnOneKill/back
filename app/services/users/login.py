@@ -1,15 +1,14 @@
 import jwt
-from app.configs.base_config import Google, Token
+from app.configs.base_config import Google, Tokens
 from app.dtos.users import Token, TokenUserData
-from app.models import user
-from app.models.user import UserModel
+from app.models.user import UserModel, RefreshTokenModel
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException,status
 from jwt.exceptions import InvalidTokenError
 from typing import Annotated
 
 google = Google()
-token = Token()
+token = Tokens()
 
 SECRET_KEY = google.SECRET_KEY
 ALGORITHM = "HS256"
@@ -29,10 +28,10 @@ def create_token(data: dict, expires_delta: timedelta | None = None):
 
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM) # 토큰 생성
 
-    return encoded_jwt
+    return encoded_jwt, expire
 
 
-# 유저 검증
+# 유저 검증, token 유효성 검사
 async def user_check(token: str):
     credentials_exception = HTTPException( # 에러
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,22 +45,35 @@ async def user_check(token: str):
         if userdata is None:
             raise credentials_exception
         token_data = TokenUserData(user=userdata)
-    except InvalidTokenError:
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Expired token")
+    except jwt.InvalidTokenError:
         raise credentials_exception
-    user = UserModel.filter(id=token_data.user) # 유저 정보 데이터 확인, 실제로 있는 유저인지 체크 (없을 경우 에러 출력)
+
+    user = await UserModel.filter(id=token_data.user).first() # 유저 정보 데이터 확인, 실제로 있는 유저인지 체크 (없을 경우 에러 출력)
     if user is None:
         raise credentials_exception
-    return user
+    return user # users 테이블에서 가져온 유저 정보
 
-async def create_access():
+async def create_access(user:str):
     return create_token(
         data={"sub": user},
         expires_delta=timedelta(minutes=token.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
 
-
-async def create_refresh():
-    refresh_token = create_token(
+async def create_refresh(user:str):
+    jwt_refresh, expires_at = create_token(
         data={"sub": user},
         expires_delta=timedelta(days=token.REFRESH_TOKEN_EXPIRE_DAYS)
     )
+    return jwt_refresh, expires_at
+
+async def save_refresh(userdata, jwt_refresh, expires_at):
+    await RefreshTokenModel.create(
+        user = userdata,
+        token = jwt_refresh,
+        expires_at = expires_at,
+        revoked = False
+    )
+
+

@@ -2,6 +2,7 @@ import json
 from fastapi import APIRouter, Request
 from starlette.responses import RedirectResponse
 from app.configs.base_config import Google
+from app.models.user import UserModel
 from app.services.users.google_login import create_authorization_url, access_token, info, revoke
 from app.services.users import login
 from app.services.users.users import save_google_userdata
@@ -27,14 +28,20 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
     print(f'콜백에서 받은 credentials : {credentials}')
     # features = check_granted_scopes(credentials)
 
-    social_account = await save_google_userdata(credentials)
+    # JWT TOKEN 발급
+    social_account = await save_google_userdata(credentials) # 가입 정보 (혹은 로그인 정보)를 DB에서 가져옴.
+    print(f'social_accounts: {social_account}', type(social_account))
+    # user = await UserModel.filter(provider_id=social_account.id).first() # 로그인한 유저의 데이터를 객체화
+    # print(f'user: {user}')
+    jwt_access = await login.create_access(str(social_account.id)) # jwt access token
+    jwt_refresh, expires_at = await login.create_refresh(str(social_account.id)) # jwt refresh token
+    print(f'access: {jwt_access}, refresh: {jwt_refresh}')
+    await login.save_refresh(social_account, jwt_refresh, expires_at)
 
-    jwt_access = login.create_access()
+    response = RedirectResponse(google.URL)
+    response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=True) #
 
-    # mypage_url = '/api/v1/users/myinfo'
-    return RedirectResponse(google.URL)
-    return RedirectResponse(url='/')
-    jwt_access = login.create_access()
+    return response
 
 @router.post('/logout')
 # @router.get('/logout') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
