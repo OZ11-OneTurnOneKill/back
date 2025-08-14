@@ -53,3 +53,33 @@ class ChallengeProgress(Model, BaseModel):
 
     def __str__(self):
         return f"<ChallengeProgress(id={self.id}, study_plan_id={self.study_plan_id}, status={self.status})>"
+
+    class DocumentSummary(Model, BaseModel):
+        """AI 자료 요약 테이블"""
+
+        user = fields.ForeignKeyField(
+            "models.UserModel",
+            on_delete=fields.CASCADE,
+            null=False,
+            description="유저 식별자 / FK"
+        )
+        title = fields.CharField(max_length=200, description="요약 제목")
+        input_type = fields.CharField(
+            max_length=20,
+            default="text",
+            description="입력 타입 (text, url, file)"
+        )
+        input_data = fields.TextField(description="원본 자료 (텍스트 또는 URL)")
+        file_url = fields.TextField(null=True, description="업로드된 파일 URL")
+        summary_type = fields.CharField(
+            max_length=20,
+            default="general",
+            description="요약 유형 (general, keywords, qa, study)"
+        )
+        output_data = fields.TextField(null=True, description="AI 요약 결과 (JSON)")
+
+        class Meta:
+            table = "ai_document_summaries"
+
+        def __str__(self):
+            return f"<DocumentSummary(id={self.id}, user_id={self.user_id}, type={self.summary_type})>"
