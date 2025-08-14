@@ -26,8 +26,8 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
 
     social_account = await save_google_userdata(credentials)
 
-    mypage_url = '/api/v1/users/myinfo'
-    return RedirectResponse(mypage_url)
+    # mypage_url = '/api/v1/users/myinfo'
+    return RedirectResponse(url='/')
 
 @router.post('/logout')
 @router.get('/logout') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
