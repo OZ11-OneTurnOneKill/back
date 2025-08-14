@@ -1,6 +1,7 @@
 import json
 from fastapi import APIRouter, Request
 from starlette.responses import RedirectResponse
+from app.configs.base_config import Google
 from app.services.users.google_login import create_authorization_url, access_token, info, revoke
 from app.services.users import login
 from app.services.users.users import save_google_userdata
@@ -8,6 +9,7 @@ from google.oauth2.credentials import Credentials
 
 
 router = APIRouter(prefix="/api/v1/users/auth/google", tags=["Google"])
+google = Google()
 
 
 # OAuth2.0 액세스 토큰 가져오기
@@ -28,6 +30,7 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
     social_account = await save_google_userdata(credentials)
 
     # mypage_url = '/api/v1/users/myinfo'
+    return RedirectResponse(google.URL)
     return RedirectResponse(url='/')
     jwt_access = login.create_access()
 

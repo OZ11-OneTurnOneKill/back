@@ -29,6 +29,7 @@ class Google(BaseSettings):
     GOOGLE_TOKEN_URI: str = 'https://accounts.google.com/o/oauth2/token'
 
     REDIRECT_URI: str = 'uri'
+    URL: str = 'url'
 
     SECRET_KEY: str = 'secret'
 
