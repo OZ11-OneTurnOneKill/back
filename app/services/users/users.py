@@ -1,7 +1,7 @@
 import json
 import httpx
 import random
-from app.dtos.users import SocialAccount, User, GetMyInfo
+from app.dtos.users import User, GetMyInfo
 from app.models.user import UserModel
 from google.oauth2.credentials import Credentials
 

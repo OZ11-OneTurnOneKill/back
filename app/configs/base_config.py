@@ -29,3 +29,11 @@ class Google(BaseSettings):
     GOOGLE_TOKEN_URI: str = 'https://accounts.google.com/o/oauth2/token'
 
     REDIRECT_URI: str = 'uri'
+
+    SECRET_KEY: str = 'secret'
+
+
+class Token(BaseSettings):
+    ACCESS_TOKEN_EXPIRE_MINUTES : int
+    REFRESH_TOKEN_EXPIRE_DAYS: int
+

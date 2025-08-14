@@ -27,6 +27,8 @@ tags_metadata = [
     {"name": "Community · Common", "description": "댓글, 좋아요, 삭제 등 공통 API"},
     {"name": "Community · Post", "description": "각 게시글 전체 조회 API"},
     {"name": "AI Study Plan", "description": "AI 학습 계획 API"},
+    {"name": "Google", "description": "Google 소셜 로그인 API"},
+    {"name": "Users", "description": "Users API"},
 ]
 
 app = FastAPI(default_response_class=ORJSONResponse, openapi_tags=tags_metadata)

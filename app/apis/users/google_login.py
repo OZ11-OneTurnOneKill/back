@@ -2,6 +2,7 @@ import json
 from fastapi import APIRouter, Request
 from starlette.responses import RedirectResponse
 from app.services.users.google_login import create_authorization_url, access_token, info, revoke
+from app.services.users import login
 from app.services.users.users import save_google_userdata
 from google.oauth2.credentials import Credentials
 
@@ -26,11 +27,13 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
 
     social_account = await save_google_userdata(credentials)
 
+    jwt_access = login.create_access()
+
     mypage_url = '/api/v1/users/myinfo'
     return RedirectResponse(mypage_url)
 
 @router.post('/logout')
-@router.get('/logout') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
+# @router.get('/logout') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
 async def post_revoke(request: Request) -> RedirectResponse:
     print('라우터에서의 함수 실행 완')
     await revoke(request)
