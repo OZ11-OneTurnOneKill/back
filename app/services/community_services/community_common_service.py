@@ -129,8 +129,12 @@ async def service_create_comment(*, post_id: int, user_id: int, content: str, pa
 
         if parent_comment_id is not None:
             parent = await CommentModel.get_or_none(id=parent_comment_id).using_db(tx)
+
             if not parent or parent.post_id != post_id:
                 raise HTTPException(status_code=400, detail="Invalid parent_comment_id")
+
+            if parent.parent_comment_id is not None:
+                raise HTTPException(status_code=400, detail="Only one-level replies allowed")
 
         c = await CommentModel.create(
             post_id=post_id, user_id=user_id,
