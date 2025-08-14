@@ -2,6 +2,8 @@ import jwt
 from app.configs.base_config import Google, Tokens
 from app.dtos.users import Token, TokenUserData
 from app.models.user import UserModel, RefreshTokenModel
+from app.models import user
+from app.models.user import UserModel
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException,status
 from jwt.exceptions import InvalidTokenError
