@@ -29,6 +29,8 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
 
     social_account = await save_google_userdata(credentials)
 
+    jwt_access = login.create_access()
+
     # mypage_url = '/api/v1/users/myinfo'
     return RedirectResponse(google.URL)
     return RedirectResponse(url='/')
