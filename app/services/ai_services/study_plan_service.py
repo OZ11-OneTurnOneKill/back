@@ -6,8 +6,8 @@ from tortoise.transactions import in_transaction
 
 from app.services.ai_services.gemini_service import GeminiService
 from app.models.ai import StudyPlan, ChallengeProgress
-from app.dtos.ai_study_plan.study_plan import StudyPlanRequest, StudyPlanResponse
-from app.dtos.ai_study_plan.challenge_progress import (
+from app.dtos.ai.study_plan import StudyPlanRequest, StudyPlanResponse
+from app.dtos.ai.challenge_progress import (
     ChallengeProgressResponse,
     StudyPlanWithChallengeResponse
 )

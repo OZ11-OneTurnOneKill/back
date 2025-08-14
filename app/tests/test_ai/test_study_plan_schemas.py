@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime
 from pydantic import ValidationError
-from app.dtos.ai_study_plan.study_plan import StudyPlanRequest, StudyPlanResponse
+from app.dtos.ai.study_plan import StudyPlanRequest, StudyPlanResponse
 
 
 class TestStudyPlanRequest:

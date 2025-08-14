@@ -16,7 +16,7 @@ class TestStudyPlanServiceSimple:
             'app.models.study_plan': MagicMock(),
             'app.models.ai': MagicMock(),
             'app.services.ai_services.study_plan_service': MagicMock(),
-            'app.dtos.ai_study_plan.study_plan': MagicMock(),
+            'app.dtos.ai.study_plan': MagicMock(),
             'tortoise': MagicMock(),
             'tortoise.models': MagicMock(),
         }):
@@ -57,7 +57,7 @@ class TestStudyPlanServiceSimple:
         with patch.dict('sys.modules', {
             'app.models.study_plan': MagicMock(),
             'app.services.ai_services.study_plan_service': MagicMock(),
-            'app.dtos.ai_study_plan.study_plan': MagicMock(),
+            'app.dtos.ai.study_plan': MagicMock(),
         }):
             # Mock 서비스
             mock_service = MagicMock()

@@ -36,7 +36,7 @@ class TestAPIBasics:
             "/api/study_plan",
             "/api/study-plan",
             "/ai/study_plan",
-            "/ai_study_plan",
+            "/ai",
             "/study_plans",
             "/docs",  # FastAPI 자동 문서
             "/openapi.json"  # OpenAPI 스펙
@@ -391,7 +391,7 @@ class TestEnvironmentSetup:
             "main",
             "app.apis",
             "app.services.ai_services.study_plan_service",
-            "app.dtos.ai_study_plan.study_plan"
+            "app.dtos.ai.study_plan"
         ]
 
         for module_name in modules_to_test:

@@ -2,7 +2,7 @@ import json
 from google import generativeai as genai
 from typing import Dict, Any
 from datetime import datetime
-from app.dtos.ai_study_plan.study_plan import StudyPlanRequest
+from app.dtos.ai.study_plan import StudyPlanRequest
 
 import logging
 import json
@@ -255,6 +255,88 @@ class GeminiService:
 
             if milestone_missing_fields:
                 raise ValueError(f"Milestone {i + 1} missing required fields: {milestone_missing_fields}")
+
+    async def generate_summary(
+            self,
+            content: str,
+            summary_type: str = "general",
+            title: str = ""
+    ) -> Dict[str, Any]:
+        """자료 요약 생성"""
+        try:
+            prompt = self._build_summary_prompt(content, summary_type, title)
+            logger.info(f"📝 요약 프롬프트 생성 완료: {len(prompt)} 문자")
+
+            response = await self.model.generate_content_async(prompt)
+            logger.info(f"📨 Gemini 요약 응답 받음: {len(response.text)} 문자")
+
+            # JSON 파싱
+            try:
+                clean_text = response.text.strip()
+                if clean_text.startswith("```json"):
+                    clean_text = clean_text[7:-3]
+                elif clean_text.startswith("```"):
+                    clean_text = clean_text[3:-3]
+
+                parsed_response = json.loads(clean_text)
+                logger.info("✅ 요약 JSON 파싱 성공!")
+                return parsed_response
+
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ 요약 JSON 파싱 실패: {e}")
+                # 폴백 응답
+                return {
+                    "title": title or "자료 요약",
+                    "summary_type": summary_type,
+                    "summary": f"다음 내용을 요약했습니다:\n\n{content[:500]}...",
+                    "key_points": ["주요 내용을 파악하지 못했습니다."],
+                    "_fallback": True
+                }
+
+        except Exception as e:
+            logger.error(f"❌ Gemini 요약 API 호출 실패: {e}")
+            raise ValueError(f"Summary generation error: {str(e)}")
+
+    def _build_summary_prompt(self, content: str, summary_type: str, title: str) -> str:
+        """요약 프롬프트 생성"""
+
+        type_instructions = {
+            "general": "핵심 내용을 간결하고 명확하게 요약해주세요.",
+            "keywords": "주요 키워드와 핵심 개념을 중심으로 정리해주세요.",
+            "qa": "주요 내용을 Q&A 형식으로 정리해주세요.",
+            "study": "학습하기 좋게 구조화하여 요약해주세요."
+        }
+
+        instruction = type_instructions.get(summary_type, type_instructions["general"])
+
+        prompt = f"""
+    다음 자료를 요약해주세요.
+
+    제목: {title}
+    요약 유형: {summary_type}
+    지침: {instruction}
+
+    원본 내용:
+    {content}
+
+    다음 JSON 형식으로 요약 결과를 작성해주세요:
+
+    {{
+        "title": "요약 제목",
+        "summary_type": "{summary_type}",
+        "summary": "핵심 내용 요약 (2-3 문단)",
+        "key_points": ["주요 포인트 1", "주요 포인트 2", "주요 포인트 3"],
+        "word_count": 원본_글자수,
+        "summary_ratio": "요약_비율 (예: 20%)"
+    }}
+
+    주의사항:
+    1. 원본 내용의 핵심만 간추려주세요
+    2. 객관적이고 정확한 정보만 포함해주세요
+    3. JSON 형식을 정확히 지켜주세요
+    """
+
+        return prompt
 
 
 class GeminiServiceConfig:

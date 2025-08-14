@@ -1,15 +1,15 @@
-# app/apis/ai_study_plan/ai_study_plan_router.py
+# app/apis/ai/ai_study_plan_router.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Dict, Any, Optional
 import logging
 
-from app.dtos.ai_study_plan.study_plan import (
+from app.dtos.ai.study_plan import (
     StudyPlanRequest,
     StudyPlanResponse,
     StudyPlanUpdate,
     AsyncTaskResponse
 )
-from app.dtos.ai_study_plan.challenge_progress import (
+from app.dtos.ai.challenge_progress import (
     ChallengeProgressResponse,
     ChallengeProgressUpdate,
     StudyPlanWithChallengeResponse
