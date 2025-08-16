@@ -1,3 +1,8 @@
+"""
+# app/apis/user/google_login.py
+Google 소셜 로그인 구현 api router 관리 파일입니다.
+소셜 로그인 관련 로직은 `services/` 폴더에 작성했습니다.
+"""
 from typing import Annotated
 
 from fastapi import APIRouter, Request, Depends
@@ -12,7 +17,6 @@ from google.oauth2.credentials import Credentials
 
 router = APIRouter(prefix="/api/v1/users/auth/google", tags=["Google"])
 google = Google()
-
 
 # OAuth2.0 액세스 토큰 가져오기
 # app이 Google OAuth2.0 서버와 상호작용, 사용자를 대신해 API 요청을 실행하기 위한 동의를 받음.
@@ -57,7 +61,7 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
     await login.save_refresh(user, jwt_refresh, expires_at) # jwt refresh token 저장
 
     response = RedirectResponse(google.URL)
-    response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=False) # 개발 서버 올릴때 secure = True 변경 필요
+    response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=True) # 개발 서버 올릴때 secure = True 변경 필요
 
     return response
 
