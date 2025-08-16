@@ -58,7 +58,9 @@ google = Google()
 
 origins = [
     "http://localhost:8000", # 개발용 서버
-    "https://www.evida.site"
+    "https://www.evida.site",
+    "https://backend.evida.site",
+    "https://eunbin.evida.site",
 ]
 app.add_middleware(SessionMiddleware, secret_key=google.SECRET_KEY)
 app.add_middleware(
