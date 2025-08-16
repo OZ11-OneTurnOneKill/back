@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from app.configs.tortoise_config import initialize_tortoise
+from app.configs.base_config import Google
 # community
 from app.apis.community.study_router import router as study_router
 from app.apis.community.free_router import router as free_router
@@ -28,7 +29,9 @@ tags_metadata = [
     {"name": "Community · Common", "description": "댓글, 좋아요, 삭제 등 공통 API"},
     {"name": "Community · Post", "description": "각 게시글 전체 조회 API"},
     {"name": "AI Study Plan", "description": "AI 학습 계획 API"},
-    {"name": "AI Summary", "description": "AI 정보 요약 API"}
+    {"name": "AI Summary", "description": "AI 정보 요약 API"},
+    {"name": "Google", "description": "Google 소셜 로그인 API"},
+    {"name": "Users", "description": "Users API"},
 ]
 
 app = FastAPI(default_response_class=ORJSONResponse, openapi_tags=tags_metadata)
@@ -47,15 +50,17 @@ app.include_router(ai_summary_router)
 app.include_router(google_login)
 app.include_router(users_router)
 
+# 체크후 삭제
+# load_dotenv()
+# secret_key = os.getenv('SECRET_KEY')
 
-load_dotenv()
-secret_key = os.getenv('SECRET_KEY')
+google = Google()
 
 origins = [
-    # "http://localhost:8000", # 개발용 서버
+    "http://localhost:8000", # 개발용 서버
     "https://www.evida.site"
 ]
-app.add_middleware(SessionMiddleware, secret_key=secret_key)
+app.add_middleware(SessionMiddleware, secret_key=google.SECRET_KEY)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins, # API를 호출할 수 있는 도메인을 지정.

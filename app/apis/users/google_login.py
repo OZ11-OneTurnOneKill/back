@@ -1,9 +1,12 @@
-import json
-from fastapi import APIRouter, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Request, Depends
 from starlette.responses import RedirectResponse
 from app.configs.base_config import Google
+from app.models.user import RefreshTokenModel, UserModel
 from app.services.users.google_login import create_authorization_url, access_token, info, revoke
-from app.services.users.users import save_google_userdata
+from app.services.users import login
+from app.services.users.users import save_google_userdata, get_current_user
 from google.oauth2.credentials import Credentials
 
 
@@ -26,19 +29,47 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
     print(f'콜백에서 받은 credentials : {credentials}')
     # features = check_granted_scopes(credentials)
 
-    social_account = await save_google_userdata(credentials)
+    # JWT TOKEN 발급
+    # social_account = await save_google_userdata(credentials) # 가입 정보 (혹은 로그인 정보)를 DB에서 가져옴.
+    # print(f'social_accounts: {social_account}', type(social_account))
 
-    # mypage_url = '/api/v1/users/myinfo'
-    return RedirectResponse(google.URL)
+    try:
+        state = request.session['state']
+        provider_id = request.session['provider_id']
+        print('state 값', state)
+        print('provider_id', provider_id)
+    except KeyError:
+        return {'error': 'Session을 찾지 못했습니다.'}
+
+    provider_id = request.session.get('provider_id')
+    print(provider_id, type(provider_id))
+    if not provider_id:
+        print(f'세션에서 provider_id 조회가 안됩니다. 로그인을 다시 요청합니다. : {provider_id}')
+        return RedirectResponse('/api/v1/users/auth/google/login')
+
+    user = await UserModel.filter(provider_id=provider_id).first() # 로그인한 유저의 데이터를 객체화
+    print(f'user: {user.id}')
+
+    jwt_access, expires = await login.create_access(str(user.id)) # jwt access token
+    jwt_refresh, expires_at = await login.create_refresh(str(user.id)) # jwt refresh token
+    print(f'access: {jwt_access}, refresh: {jwt_refresh}')
+
+    await login.save_refresh(user, jwt_refresh, expires_at) # jwt refresh token 저장
+
+    response = RedirectResponse(google.URL)
+    response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=False) # 개발 서버 올릴때 secure = True 변경 필요
+
+    return response
 
 @router.post('/logout')
-@router.get('/logout') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
-async def post_revoke(request: Request) -> RedirectResponse:
+# @router.get('/logout') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
+async def post_revoke(request: Request, current_user: Annotated[UserModel, Depends(get_current_user)]) -> RedirectResponse:
     print('라우터에서의 함수 실행 완')
-    await revoke(request)
+    response = await revoke(request, current_user)
     print('토큰 삭제 함수 실행 완')
-    return RedirectResponse(url='/')
+    # return RedirectResponse(url='/')
     # return '라우터 문제는 아닌가봐.'
+    return response
 
 
 """@router.get('/myinfo')

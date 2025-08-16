@@ -21,6 +21,15 @@ class SocialAccount(BaseModel):
     provider_id : str # 소셜 로그인 아이디
     email : EmailStr # 이메일
 
+
+# 토큰
+class TokenUserData(BaseModel):
+    user : int
+
+class Token(BaseModel):
+    access_token : str
+    token_type : str
+
 class RefreshToken(BaseModel):
     user : int # usermodel FK
     token : str
@@ -35,3 +44,4 @@ class GetMyInfo(BaseModel):
     nickname :str # Social Account
     profile_image_url : str # Social Account
     email : EmailStr # User
+
