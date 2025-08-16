@@ -1,13 +1,15 @@
 import asyncio
 import httpx
-import os
 import json
 from app.configs.base_config import Google
+from app.models.user import UserModel
+from app.services.users.login import revoke_refresh
 from concurrent.futures.thread import ThreadPoolExecutor
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow # 사용자 승인
 from fastapi import Request, HTTPException
 from starlette.responses import RedirectResponse
+
 
 
 # load_dotenv()
@@ -95,6 +97,19 @@ async def access_token(request: Request):
     print(f'생성된 credentials : {credentials}')
     request.session['credentials'] = credentials.to_json()
     print(f'세션에 무사히 저장 완료')
+
+    async with httpx.AsyncClient() as client:
+        user_info_res = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {credentials.token}"}
+        )
+
+        user_info = user_info_res.json()
+
+        provider_id = user_info["id"]  # 구글에서 제공하는 고유 ID
+        request.session['provider_id'] = provider_id
+        print(f'저장된 provider_id : {provider_id}')
+
     return credentials
 
 
@@ -128,7 +143,7 @@ async def info(credentials: Credentials): # 구글API에 사용자 정보 요청
         return user_info
 
 
-async def revoke(request: Request):
+async def revoke(request: Request, current_user: UserModel):
     if 'credentials' not in request.session: # 세션에 저장된 데이터가 없을 경우
         print('세션 데이터 일치하지 않습니다. 확인 필요.')
         return RedirectResponse(url='/')
@@ -137,7 +152,7 @@ async def revoke(request: Request):
         json.loads(request.session.get('credentials'))
     ) # 세션에서 데이터를 가져옴.
 
-    # 비동기 HTTP 클라이언트인 httpx를 사용
+    # 비동기 HTTP 클라이언트인 httpx를 사용, 로그아웃 API 호출
     async with httpx.AsyncClient() as client:
         revoke_response = await client.post(
             'https://oauth2.googleapis.com/revoke',
@@ -145,13 +160,23 @@ async def revoke(request: Request):
             headers={'content-type': 'application/x-www-form-urlencoded'}
         )
 
+    if 'credentials' in request.session:
+        del request.session['credentials'] # 세션 삭제
+
+    # refresh token 무효화
+    await revoke_refresh(current_user)
+
+    response = RedirectResponse(url='/')
+    response.delete_cookie('access_token', path='/')
+
     # 응답 상태 코드로 성공/실패 여부 판단
     if revoke_response.status_code == 200:
         # 로그아웃 성공 시 세션 데이터 삭제
-        del request.session['credentials']
+        request.session.clear()
+        # await request.session.update()
         # 성공 메시지 반환 또는 홈으로 리디렉션
         print('로그아웃은 되었는데 여기선 확인을 못하는듯...')
-        return RedirectResponse(url='/') # 로그아웃 성공 시 루트 페이지로 이동.
+        return response # 로그아웃 성공 시 루트 페이지로 이동.
     else:
         # 로그아웃 실패 시 오류 메시지 반환
         return '로그아웃에 문제가 생겼습니다.'

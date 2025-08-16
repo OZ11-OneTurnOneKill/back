@@ -2,11 +2,9 @@ import jwt
 from app.configs.base_config import Google, Tokens
 from app.dtos.users import Token, TokenUserData
 from app.models.user import UserModel, RefreshTokenModel
-from app.models import user
-from app.models.user import UserModel
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException,status
-from jwt.exceptions import InvalidTokenError
+from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 from typing import Annotated
 
 google = Google()
@@ -34,7 +32,7 @@ def create_token(data: dict, expires_delta: timedelta | None = None):
 
 
 # 유저 검증, token 유효성 검사
-async def user_check(token: str):
+async def user_check(token):
     credentials_exception = HTTPException( # 에러
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -58,10 +56,11 @@ async def user_check(token: str):
     return user # users 테이블에서 가져온 유저 정보
 
 async def create_access(user:str):
-    return create_token(
+    jwt_access, expires = create_token(
         data={"sub": user},
         expires_delta=timedelta(minutes=token.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
+    return jwt_access, expires
 
 async def create_refresh(user:str):
     jwt_refresh, expires_at = create_token(
@@ -70,12 +69,58 @@ async def create_refresh(user:str):
     )
     return jwt_refresh, expires_at
 
+async def revoke_refresh(userdata):
+    await RefreshTokenModel.filter(user=userdata, revoked=False).update(revoked=True)
+
 async def save_refresh(userdata, jwt_refresh, expires_at):
-    await RefreshTokenModel.create(
-        user = userdata,
-        token = jwt_refresh,
-        expires_at = expires_at,
-        revoked = False
-    )
+    """
+    JWT, refresh token 상태를 DB로 관리 합니다.
+    유저가 로그인 할때 DB에 데이터 유무에 따라 새로운 레코드를 생성하거나, 기존 레코드를 수정합니다.
+    """
+    token_check = await RefreshTokenModel.filter(user=userdata).first() # 기존 레코드 조회
+    print(f'현재 데이터 상태 {token_check.id}')
 
+    if token_check is None: # 만약 DB에 저장된 데이터 없을시, 새로 생성
+        new_data = await RefreshTokenModel.create(
+            user=userdata,
+            token=jwt_refresh,
+            expires_at=expires_at,
+            revoked=False
+        )
+        print(f'NEW DATA!!!!:) {new_data}')
+    else:
+        before_data = await RefreshTokenModel.filter(user=userdata).first() # 기존 레코드 조회
+        print(f'이전 refresh token {before_data.revoked}')
+        update_data = await RefreshTokenModel.filter(user=userdata).update(
+            token=jwt_refresh,
+            expires_at=expires_at,
+            revoked=False
+        )
+        check_data = await RefreshTokenModel.filter(user=userdata).first()
+        print(f'refresh token {check_data.revoked}')
 
+        # token_check.refresh_token = jwt_refresh # 로그인 하면서 새롭게 발급 받은 jwt refresh token
+        # token_check.expires_at = expires_at
+        # token_check.revoked = False
+        # await token_check.save()
+
+        print(f'UPDATE!!!!:) {update_data}')
+
+    # await RefreshTokenModel.filter(user=userdata, revoked=False).update(revoked=True)
+
+    # await RefreshTokenModel.create_(
+    #     user = userdata,
+    #     token = jwt_refresh,
+    #     expires_at = expires_at,
+    #     revoked = False
+    # )
+
+#
+def decode_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except ExpiredSignatureError:
+        return None  # 토큰 만료
+    except InvalidTokenError:
+        return None  # 유효하지 않은 토큰

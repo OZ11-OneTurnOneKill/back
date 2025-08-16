@@ -1,10 +1,15 @@
 import json
 import httpx
 import random
+
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 from app.dtos.users import User, GetMyInfo
 from app.models.user import UserModel
 from google.oauth2.credentials import Credentials
 
+from app.services.users.login import user_check, decode_token
 
 # profile data
 # async def info(credentials: Credentials): # 구글API에 사용자 정보 요청
@@ -20,20 +25,48 @@ from google.oauth2.credentials import Credentials
 #
 #         return user_info
 
+security = HTTPBearer() # 토큰 헤더 받아옴
 
-async def get_info(user_id : int) -> GetMyInfo:
-    info = await UserModel.get(id=user_id)
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    print('get_current_user, token', token)
+    if token.startswith("Bearer "):
+        token = token[7:]
+
+    payload = decode_token(token)
+    print('payload', payload)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid token")
+
+    user_id = payload.get('sub')
+    print('user_id', user_id)
+    user = await UserModel.get_or_none(id=user_id)
+    print('user', user)
+    if not user:
+        raise HTTPException(status_code=404, detail='데이터 없음')
+
+    return user
+
+# async def get_cookie_access(request: Request):
+#     # token = request.cookies.get('access_token')
+#     # print(token)
+#      user_data= await get_current_user()
+#     return
+
+async def get_info(user : UserModel) -> GetMyInfo:
+    # info = await UserModel.get(id=user_id)
+
     print(GetMyInfo(
-        id=info.id,
-        nickname=info.nickname,  # Social Account
-        profile_image_url=info.profile_image_url,  # Social Account
-        email=info.email,
+        id=user.id,
+        nickname=user.nickname,  # Social Account
+        profile_image_url=user.profile_image_url,  # Social Account
+        email=user.email,
     ))
     return GetMyInfo(
-        id = info.id,
-        nickname = info.nickname, # Social Account
-        profile_image_url = info.profile_image_url,  # Social Account
-        email = info.email,
+        id = user.id,
+        nickname = user.nickname, # Social Account
+        profile_image_url = user.profile_image_url,  # Social Account
+        email = user.email,
     )
 
 
@@ -95,45 +128,4 @@ async def save_google_userdata(credentials: Credentials):
         user = await get_or_create_user(user_info)
 
     return user
-        # # 닉네임 랜덤 생성
-        # base_nickname = '반가워요'
-        # random_suffix = random.randint(1000, 9999)
-        # nickname = f"{base_nickname}{random_suffix}"
-        #
-        #
-        # # DB에 등록된 데이터와 비교
-        # social_account, created = await UserModel.get_or_create( # social_account=조회할 데이터 / created=DB에 해당 데이터(레코드) 여부 조회. (True일때 데이터 등록, 기존에 데이터 있을 경우 False 출력)
-        #     provider='google',
-        #     provider_id=user_info['id'],
-        #     email=user_info['email'],
-        #     nickname=user_info['nickname'],
-        #     profile_image_url=user_info['picture'],
-        #     is_active=True,
-        #     is_superuser=False,
-        # )
-        #
-        # user = await get_or_create_user(user_info)
-        #
-        # if created == True:
-        #     # 회원 정보 DB에 등록
-        #     # new_google_user = await SocialAccount.create(
-        #     #     provider='google',
-        #     #     provider_id=user_info['id'],
-        #     #     email=user_info['email']
-        #     # )
-        #     new_user = await UserModel.create(
-        #         provider='google',
-        #         provider_id=user_info['id'],
-        #         email=user_info['email'],
-        #         nickname=nickname,
-        #         profile_image_url=user_info['picture'],
-        #         is_active=True,
-        #         is_superuser=False,
-        #     )
-        #     social_account.user = new_user # 테이블간의 관계성 부여
-        #     await social_account.save() # DB 저장
-        #     print(f'{new_user.nickname} 유저 데이터가 저장 되었습니다.')
-        #
-        # else:
-        #     await UserModel.fetch_related(social_account)
 
