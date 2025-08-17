@@ -177,8 +177,10 @@ async def revoke(request: Request, current_user: UserModel):
     유저의 로그아웃 요청시, 세션과 쿠키에 저장된 데이터 무효화와 DB에 상태를 반영한다.
     """
     if 'credentials' not in request.session: # 세션에 저장된 데이터가 없을 경우
-        print('세션 데이터 일치하지 않습니다. 확인 필요.')
-        return RedirectResponse(url='/')
+        # print('세션 데이터 일치하지 않습니다. 확인 필요.')
+        response = RedirectResponse(google.URL)
+        response.delete_cookie('access_token', path='/')
+        return response
 
     credentials = Credentials.from_authorized_user_info(
         json.loads(request.session.get('credentials'))
@@ -193,13 +195,16 @@ async def revoke(request: Request, current_user: UserModel):
         )
 
     if 'credentials' in request.session:
-        del request.session['credentials'] # 세션 삭제
+        # del request.session['credentials'] # 세션 삭제
+        request.session.clear()
 
     # refresh token 무효화
     await revoke_refresh(current_user)
 
-    response = RedirectResponse(url='/')
+    response = RedirectResponse(google.URL)
     response.delete_cookie('access_token', path='/')
+
+    return response
 
     # # 응답 상태 코드로 성공/실패 여부 판단
     # if revoke_response.status_code == 200:
@@ -212,4 +217,4 @@ async def revoke(request: Request, current_user: UserModel):
     # else:
     #     # 로그아웃 실패 시 오류 메시지 반환
     #     return '로그아웃에 문제가 생겼습니다.'
-    return RedirectResponse(url='/')
+    # return RedirectResponse(url='/')
