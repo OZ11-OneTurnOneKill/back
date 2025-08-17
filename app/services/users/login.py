@@ -1,3 +1,7 @@
+"""
+# app/services/users/login.py
+JWT Token 관련된 로직을 작성한 파일.
+"""
 import jwt
 from app.configs.base_config import Google, Tokens
 from app.dtos.users import Token, TokenUserData
@@ -70,33 +74,34 @@ async def create_refresh(user:str):
     return jwt_refresh, expires_at
 
 async def revoke_refresh(userdata):
-    await RefreshTokenModel.filter(user=userdata, revoked=False).update(revoked=True)
+    await RefreshTokenModel.filter(user=userdata, revoked=False).update(revoked=True, updated_at=datetime.now(timezone.utc))
 
 async def save_refresh(userdata, jwt_refresh, expires_at):
     """
     JWT, refresh token 상태를 DB로 관리 합니다.
     유저가 로그인 할때 DB에 데이터 유무에 따라 새로운 레코드를 생성하거나, 기존 레코드를 수정합니다.
     """
-    token_check = await RefreshTokenModel.filter(user=userdata).first() # 기존 레코드 조회
-    print(f'현재 데이터 상태 {token_check.id}')
+    token_check = await RefreshTokenModel.filter(user_id=userdata.id).first() # 기존 레코드 조회
+    print(f'현재 데이터 상태 {token_check}')
 
     if token_check is None: # 만약 DB에 저장된 데이터 없을시, 새로 생성
         new_data = await RefreshTokenModel.create(
-            user=userdata,
+            user_id=userdata.id,
             token=jwt_refresh,
             expires_at=expires_at,
             revoked=False
         )
         print(f'NEW DATA!!!!:) {new_data}')
     else:
-        before_data = await RefreshTokenModel.filter(user=userdata).first() # 기존 레코드 조회
+        before_data = await RefreshTokenModel.filter(user_id=userdata.id).first() # 기존 레코드 조회
         print(f'이전 refresh token {before_data.revoked}')
-        update_data = await RefreshTokenModel.filter(user=userdata).update(
+        update_data = await RefreshTokenModel.filter(user_id=userdata.id).update(
+            updated_at=datetime.now(timezone.utc),
             token=jwt_refresh,
             expires_at=expires_at,
             revoked=False
         )
-        check_data = await RefreshTokenModel.filter(user=userdata).first()
+        check_data = await RefreshTokenModel.filter(user_id=userdata.id).first()
         print(f'refresh token {check_data.revoked}')
 
         # token_check.refresh_token = jwt_refresh # 로그인 하면서 새롭게 발급 받은 jwt refresh token

@@ -57,12 +57,16 @@ app.include_router(users_router)
 google = Google()
 
 origins = [
-    "http://localhost:8000", # 개발용 서버
+    "http://localhost:8000",
     "https://www.evida.site",
     "https://backend.evida.site",
     "https://eunbin.evida.site",
 ]
-app.add_middleware(SessionMiddleware, secret_key=google.SECRET_KEY)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=google.SECRET_KEY,
+
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins, # API를 호출할 수 있는 도메인을 지정.

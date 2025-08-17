@@ -73,9 +73,11 @@ async def get_info(user : UserModel) -> GetMyInfo:
 
 
 async def get_or_create_user(user_info):
+    """
+    회원가입 및 로그인한 유저의 데이터가 DB에 저장 되어있는지 확인을 통해
+    기존의 저장된 데이터를 가져오거나, 새롭게 데이터를 저장한다.
+    """
     # user_info는 구글에서 받은 유저 데이터 (dict)
-    # social_account는 SocialAccountModel 인스턴스
-
     # 이메일이나 소셜계정 기준으로 유저 조회
     user = await UserModel.filter(email=user_info['email']).first()
 
