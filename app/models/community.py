@@ -96,28 +96,49 @@ class StudyRecruitmentModel(Model):
         table = "study_recruitments"
 
 
-class FreeBoardModel(Model):
-    post = fields.OneToOneField(
+class FreeImageModel(BaseModel, Model):
+    """자유게시판 이미지 첨부 (1:N)"""
+    post = fields.ForeignKeyField(
         "models.PostModel",
-        related_name="free_board",
+        related_name="free_images",
         on_delete=fields.CASCADE,
-        pk=True
+        index=True,
+        null=False,
     )
-    image_url = fields.TextField(null=True)
+    image_url  = fields.TextField(null=False)
+    image_key  = fields.TextField(null=False)   # S3 key (삭제/교체에 필요)
+    mime_type  = fields.CharField(max_length=100, null=False)
+    size_bytes = fields.BigIntField(null=False)
+
     class Meta:
-        table = "free_boards"
+        table = "free_images"
+        # 조회 패턴 고려: post_id 단건/목록 조회 빠르게, 정렬 키로 id도 함께
+        indexes = (("post_id",), ("post_id", "id"))
+
+    def __str__(self) -> str:
+        return f"<FreeImage id={self.id} post={self.post_id} size={self.size_bytes}>"
 
 
-class DataShareModel(Model):
-    post = fields.OneToOneField(
+class ShareFileModel(BaseModel, Model):
+    """자료공유 파일 첨부 (1:N)"""
+    post = fields.ForeignKeyField(
         "models.PostModel",
-        related_name="data_share",
+        related_name="share_files",
         on_delete=fields.CASCADE,
-        pk=True
+        index=True,
+        null=False,
     )
-    file_url = fields.TextField(null=True)
+    file_url   = fields.TextField(null=False)
+    file_key   = fields.TextField(null=False)
+    mime_type  = fields.CharField(max_length=150, null=False)
+    size_bytes = fields.BigIntField(null=False)
+
     class Meta:
-        table = "data_shares"
+        table = "share_files"
+        indexes = (("post_id",), ("post_id", "id"))
+
+    def __str__(self) -> str:
+        return f"<ShareFile id={self.id} post={self.post_id} size={self.size_bytes}>"
 
 
 class StudyApplicationModel(BaseModel, Model):

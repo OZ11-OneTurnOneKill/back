@@ -43,7 +43,6 @@ class FreePostRequest(BaseModel):
     content: str
     category: Literal["free"] = "free"
     user_id: int
-    image_url: str | None = None
 
 
 # ===== 자료공유 요청 DTO =====
@@ -52,7 +51,6 @@ class SharePostRequest(BaseModel):
     content: str
     category: Literal["share"] = "share"
     user_id: int
-    file_url: str | None = None
 
 
 class StudyPostUpdateRequest(BaseModel):
@@ -69,14 +67,14 @@ class FreePostUpdateRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     title: Optional[str] = None
     content: Optional[str] = None
-    image_url: Optional[Optional[str]] = None  # null로 보내면 제거
+
 
 
 class SharePostUpdateRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     title: Optional[str] = None
     content: Optional[str] = None
-    file_url: Optional[Optional[str]] = None  # null로 보내면 제거
+
 
 
 class CommentRequest(BaseModel):

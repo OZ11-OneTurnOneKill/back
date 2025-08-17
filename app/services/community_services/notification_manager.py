@@ -1,5 +1,3 @@
-# app/services/notification_manager.py
-
 class NotificationManager:
     def __init__(self):
         self.notifications = []

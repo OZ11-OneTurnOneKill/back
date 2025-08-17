@@ -33,9 +33,6 @@ class StudyPostResponse(BaseModel):
 
 
 # ===== 자유게시판 응답 DTO =====
-class FreeBoardResponse(BaseModel):
-    image_url: Optional[str] = None
-
 
 class FreePostResponse(BaseModel):
     id: int
@@ -44,16 +41,11 @@ class FreePostResponse(BaseModel):
     category: str
     author_id: int
     views: int
-    free_board: FreeBoardResponse
     created_at: datetime
     updated_at: datetime
 
 
 # ===== 자료공유 응답 DTO =====
-class DataShareResponse(BaseModel):
-    file_url: Optional[str] = None
-
-
 class SharePostResponse(BaseModel):
     id: int
     title: str
@@ -61,7 +53,6 @@ class SharePostResponse(BaseModel):
     category: str
     author_id: int
     views: int
-    data_share: DataShareResponse
     created_at: datetime
     updated_at: datetime
 
