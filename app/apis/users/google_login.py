@@ -84,8 +84,7 @@ async def post_revoke(request: Request, current_user: Annotated[UserModel, Depen
     print('토큰 삭제 함수 실행 완')
     # return RedirectResponse(url='/')
     # return '라우터 문제는 아닌가봐.'
-    return {'msg':'로그아웃 완료'}
-
+    return response
 
 """@router.get('/myinfo')
 async def get_myinfo(request:Request) -> dict:
