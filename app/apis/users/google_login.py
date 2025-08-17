@@ -11,7 +11,7 @@ from app.configs.base_config import Google
 from app.models.user import RefreshTokenModel, UserModel
 from app.services.users.google_login import create_authorization_url, access_token, info, revoke
 from app.services.users import login
-from app.services.users.users import save_google_userdata, get_current_user
+from app.services.users.users import save_google_userdata, get_current_user, get_or_create_user
 from google.oauth2.credentials import Credentials
 
 
@@ -20,24 +20,31 @@ google = Google()
 
 # OAuth2.0 액세스 토큰 가져오기
 # app이 Google OAuth2.0 서버와 상호작용, 사용자를 대신해 API 요청을 실행하기 위한 동의를 받음.
-# @router.post("auth/google/login")
-# async def google_login_post()
 @router.get("/login", description='authorization_url 생성') # 로그인 및 권한 동의 페이지 URL 생성
 async def get_authorization_url(request:Request) -> RedirectResponse:
+    """
+    원활한 서비스 이용을 위해 회원가입과 로그인을 구글 소셜 계정으로 하기 위해 권한 동의 페이지 URL을 생성 및 리턴 받는다.
+    : 유저가 `/login` 요청 시, 이 함수가 실행이 되며 google login 페이지로 연결이 된다.
+        -> 유저는 연결된 페이지에서 이 서비스 이용을 위해 정보 제공 동의가 이뤄지고, 이후 callback을 통해 회원 가입 및 로그인이 진행이 된다.
+    """
     authorization_url = await create_authorization_url(request)
-    return RedirectResponse(authorization_url)
+    return RedirectResponse(authorization_url) # google 소셜 로그인 페이지로 이동
 
 @router.get("/login/callback", name='callback') # 구글에게 로그인 관련 데이터를 받음
 async def get_access_token(request: Request) -> RedirectResponse: # access token 교환
-    credentials = await access_token(request)
+    """
+    이전 단계(`/login`)에서 유저의 동의까지 마무리.
+    이를 토대로 유저 데이터를 받기 위한 access token 발급 단계.
+    원활한 서비스 이용을 위해 JWT 토큰 발급까지 이뤄진다.
+    """
+    credentials = await access_token(request) # 토큰 발급, 데이터들은 session에 저장 및 user data 저장
     print(f'콜백에서 받은 credentials : {credentials}')
-    # features = check_granted_scopes(credentials)
 
+    """
     # JWT TOKEN 발급
-    # social_account = await save_google_userdata(credentials) # 가입 정보 (혹은 로그인 정보)를 DB에서 가져옴.
-    # print(f'social_accounts: {social_account}', type(social_account))
-
-    try:
+    JWT 토큰을 발급 받기 위해 세션에 저장된 데이터를 확인 후, 토큰 발급이 진행된다.
+    """
+    try: # 세션에 저장되어있는 데이터 유무 확인
         state = request.session['state']
         provider_id = request.session['provider_id']
         print('state 값', state)
@@ -45,9 +52,10 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
     except KeyError:
         return {'error': 'Session을 찾지 못했습니다.'}
 
-    provider_id = request.session.get('provider_id')
+    provider_id = request.session.get('provider_id') # google 소셜 로그인 ID
     print(provider_id, type(provider_id))
-    if not provider_id:
+
+    if not provider_id: # 데이터가 없을때.
         print(f'세션에서 provider_id 조회가 안됩니다. 로그인을 다시 요청합니다. : {provider_id}')
         return RedirectResponse('/api/v1/users/auth/google/login')
 
@@ -68,12 +76,15 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
 @router.post('/logout')
 # @router.get('/logout') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
 async def post_revoke(request: Request, current_user: Annotated[UserModel, Depends(get_current_user)]) -> RedirectResponse:
+    """
+    유저가 로그아웃 요청시, 로그아웃 관련 로직들이 실행.
+    """
     print('라우터에서의 함수 실행 완')
     response = await revoke(request, current_user)
     print('토큰 삭제 함수 실행 완')
     # return RedirectResponse(url='/')
     # return '라우터 문제는 아닌가봐.'
-    return response
+    return {'msg':'로그아웃 완료'}
 
 
 """@router.get('/myinfo')
