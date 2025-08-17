@@ -3,8 +3,8 @@ from typing import Optional
 from app.models.community import PostModel  # 네 실제 Post 모델 경로로 변경
 from app.dtos.community_dtos.community_response import (
     StudyPostResponse, StudyRecruitmentResponse,
-    FreePostResponse, FreeBoardResponse,
-    SharePostResponse, DataShareResponse,
+    FreePostResponse,
+    SharePostResponse,
 )
 
 
@@ -44,9 +44,6 @@ def to_free_response(p: PostModel) -> FreePostResponse:
         category=p.category,
         author_id=p.user_id,
         views=p.view_count,
-        free_board=FreeBoardResponse(
-            image_url=fb.image_url if fb else None
-        ),
         created_at=p.created_at,
         updated_at=p.updated_at,
     )
@@ -63,9 +60,6 @@ def to_share_response(p: PostModel) -> SharePostResponse:
         category=p.category,
         author_id=p.user_id,
         views=p.view_count,
-        data_share=DataShareResponse(
-            file_url=ds.file_url if ds else None
-        ),
         created_at=p.created_at,
         updated_at=p.updated_at,
     )

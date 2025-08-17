@@ -7,8 +7,8 @@ from tortoise.exceptions import DoesNotExist
 from app.models.community import (
     PostModel,
     StudyRecruitmentModel,
-    FreeBoardModel,
-    DataShareModel,
+    FreeImageModel,
+    ShareFileModel,
 )
 
 KST = timezone("Asia/Seoul")
@@ -37,33 +37,35 @@ async def service_compose_study_response(post: PostModel, sr: StudyRecruitmentMo
     }
 
 
-async def service_compose_free_response(post: PostModel, fb: Optional[FreeBoardModel]) -> dict:
+async def service_compose_free_response(post: PostModel) -> dict:
+    images = await FreeImageModel.filter(post_id=post.id)\
+        .order_by("-id")\
+        .values("id", "image_url", "mime_type", "size_bytes", "created_at")
     return {
         "id": post.id,
         "title": post.title,
         "content": post.content,
         "category": "free",
-        "author_id": getattr(post, "user_id"),
+        "author_id": post.user_id,
         "views": post.view_count,
-        "free_board": {
-            "image_url": fb.image_url if fb else None,
-        },
+        "images": images,
         "created_at": post.created_at,
         "updated_at": post.updated_at,
     }
 
 
-async def service_compose_share_response(post: PostModel, ds: Optional[DataShareModel]) -> dict:
+async def service_compose_share_response(post) -> dict:
+    files = await ShareFileModel.filter(post_id=post.id).order_by("-id").values(
+        "id", "file_url", "mime_type", "size_bytes", "created_at"
+    )
     return {
         "id": post.id,
         "title": post.title,
         "content": post.content,
         "category": "share",
-        "author_id": getattr(post, "user_id"),
+        "author_id": post.user_id,
         "views": post.view_count,
-        "data_share": {
-            "file_url": ds.file_url if ds else None,
-        },
+        "files": files,  # ← 다중 첨부
         "created_at": post.created_at,
         "updated_at": post.updated_at,
     }
@@ -113,8 +115,7 @@ async def service_create_free_post(
     *,
     user_id: int,
     title: str,
-    content: str,
-    image_url: Optional[str] = None,
+    content: str
 ) -> dict:
     async with in_transaction() as tx:
         post = await PostModel.create(
@@ -127,13 +128,7 @@ async def service_create_free_post(
             comment_count=0,
             using_db=tx,
         )
-        fb = None
-        # 첨부가 있으면 free_boards 생성, 없어도 응답에서 None 허용
-        if image_url is not None:
-            fb = await FreeBoardModel.create(
-                post_id=post.id, image_url=image_url, using_db=tx
-            )
-    return await service_compose_free_response(post, fb)
+    return await service_compose_free_response(post)
 
 
 async def service_create_share_post(
@@ -156,7 +151,7 @@ async def service_create_share_post(
         )
         ds = None
         if file_url is not None:
-            ds = await DataShareModel.create(
+            ds = await ShareFileModel.create(
                 post_id=post.id, file_url=file_url, using_db=tx
             )
     return await service_compose_share_response(post, ds)
@@ -189,7 +184,7 @@ async def get_free_post_and_incr_views(post_id: int) -> dict:
             view_count=post.view_count + 1
         )
         post = await PostModel.get(id=post_id).using_db(tx)
-        free = await FreeBoardModel.get(post_id=post_id).using_db(tx)
+        free = await FreeImageModel.get(post_id=post_id).using_db(tx)
     return await service_compose_free_response(post, free)
 
 
@@ -200,7 +195,7 @@ async def get_share_post_and_incr_views(post_id: int) -> dict:
             view_count=post.view_count + 1
         )
         post = await PostModel.get(id=post_id).using_db(tx)
-        share = await DataShareModel.get(post_id=post_id).using_db(tx)
+        share = await ShareFileModel.get(post_id=post_id).using_db(tx)
     return await service_compose_share_response(post, share)
 
 
@@ -293,16 +288,16 @@ async def service_update_free_post(
             await post.save(using_db=tx)
 
         # 3) 첨부 이미지: 보내졌을 때만 처리 (문자열=추가/교체, None=제거)
-        fb: Optional[FreeBoardModel] = await FreeBoardModel.get_or_none(post_id=post_id).using_db(tx)
+        fb: Optional[FreeImageModel] = await FreeImageModel.get_or_none(post_id=post_id).using_db(tx)
         if image_url is not None:  # 키가 왔을 때만
             if fb:
                 fb.image_url = image_url  # None이면 컬럼을 비움(null 허용 필요)
                 await fb.save(using_db=tx)
             else:
                 if image_url is not None:
-                    fb = await FreeBoardModel.create(post_id=post_id, image_url=image_url, using_db=tx)
+                    fb = await FreeImageModel.create(post_id=post_id, image_url=image_url, using_db=tx)
     # 응답 조립
-    fb = await FreeBoardModel.get_or_none(post_id=post_id)  # 최신값 보장(옵션)
+    fb = await FreeImageModel.get_or_none(post_id=post_id)  # 최신값 보장(옵션)
     return await service_compose_free_response(post, fb)
 
 
@@ -338,15 +333,15 @@ async def service_update_share_post(
             await post.save(using_db=tx)
 
         # 3) 첨부 파일: 보내졌을 때만 처리 (문자열=추가/교체, None=제거)
-        ds: Optional[DataShareModel] = await DataShareModel.get_or_none(post_id=post_id).using_db(tx)
+        ds: Optional[ShareFileModel] = await ShareFileModel.get_or_none(post_id=post_id).using_db(tx)
         if file_url is not None:  # 키가 왔을 때만
             if ds:
                 ds.file_url = file_url  # None이면 컬럼을 비움(null 허용 필요)
                 await ds.save(using_db=tx)
             else:
                 if file_url is not None:
-                    ds = await DataShareModel.create(post_id=post_id, file_url=file_url, using_db=tx)
+                    ds = await ShareFileModel.create(post_id=post_id, file_url=file_url, using_db=tx)
     # 응답 조립 (프로젝트에 맞는 함수명으로 사용)
-    ds = await DataShareModel.get_or_none(post_id=post_id)
+    ds = await ShareFileModel.get_or_none(post_id=post_id)
 
     return await service_compose_share_response(post, ds)

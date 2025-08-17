@@ -1,12 +1,16 @@
 from datetime import datetime
 from typing import Optional
-
+import os
 from fastapi import APIRouter, HTTPException, Depends, Query
 from tortoise.exceptions import DoesNotExist
-from app.core.dev_auth import get_current_user_dev
+from app.core import s3
+from app.core.attach_limits import IMAGE_MIMES, IMAGE_EXTS, MAX_TOTAL_BYTES_PER_POST
+from app.core.dev_auth import get_current_user_dev, UserLite
+from app.dtos.community_dtos.attachments import PresignResp, PresignReq, AttachReq
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import FreePostRequest, FreePostUpdateRequest
 from app.dtos.community_dtos.community_response import FreePostResponse
+from app.services.community_services.attachment_service import attach_free_image, delete_free_image
 from app.services.community_services.community_get_service import service_list_posts_cursor
 from app.utils.post_mapper import to_free_response
 from app.services.community_services import community_post_service as post_svc
@@ -22,7 +26,6 @@ async def create_free_post(body: FreePostRequest):
             user_id=body.user_id,
             title=body.title,
             content=body.content,
-            image_url=body.image_url,
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -70,3 +73,28 @@ async def patch_free_post(
         )
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Post not found")
+
+
+def _ext_of(name: str) -> str:
+    return name.rsplit(".", 1)[-1].lower() if "." in name else ""
+
+@router.post("/post/free/{post_id}/attachments/presigned", response_model=PresignResp)
+async def presign_free_image(post_id: int, body: PresignReq, user: UserLite = Depends(get_current_user_dev)):
+    post = await PostModel.get_or_none(id=post_id, category="free")
+    if not post: raise HTTPException(404, "Post not found")
+    if post.user_id != user.id: raise HTTPException(403, "Not the author")
+
+    ext = _ext_of(body.filename)
+    if ext not in IMAGE_EXTS or body.content_type not in IMAGE_MIMES:
+        raise HTTPException(400, "Only jpg/png allowed with correct MIME")
+
+    # 1파일 최대는 '게시글 총한도(10MB)' 이하로 presign (실제 총합 제한은 attach에서 최종확인)
+    return s3.presigned_post_strict("free", body.filename, body.content_type, MAX_TOTAL_BYTES_PER_POST)
+
+@router.post("/post/free/{post_id}/attachments/attach")
+async def attach_free_image_api(post_id: int, body: AttachReq, user: UserLite = Depends(get_current_user_dev)):
+    return await attach_free_image(post_id=post_id, user_id=user.id, key=body.key)
+
+@router.delete("/post/free/{post_id}/attachments/{image_id}")
+async def delete_free_image_api(post_id: int, image_id: int, user: UserLite = Depends(get_current_user_dev)):
+    return await delete_free_image(post_id=post_id, user_id=user.id, image_id=image_id)

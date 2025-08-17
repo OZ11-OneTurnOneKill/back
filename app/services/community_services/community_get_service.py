@@ -5,7 +5,7 @@ from tortoise.expressions import Q
 from tortoise.functions import Count
 
 from app.core.constants import PAGE_SIZE
-from app.models.community import PostModel, StudyRecruitmentModel, DataShareModel, FreeBoardModel
+from app.models.community import PostModel, StudyRecruitmentModel, ShareFileModel, FreeImageModel
 from app.models.community import StudyApplicationModel, ApplicationStatus  # pending/approved/rejected
 
 KST = timezone("Asia/Seoul")
@@ -107,7 +107,7 @@ async def service_list_posts_cursor(
     if category in ("all", "free") and has_image is not None:
         free_ids = [it["id"] for it in items if it["category"] == "free"]
         if free_ids:
-            rows = await FreeBoardModel.filter(post_id__in=free_ids).values_list("post_id", "image_url")
+            rows = await FreeImageModel.filter(post_id__in=free_ids).values_list("post_id", "image_url")
             with_image = {pid for (pid, url) in rows if url}
             if has_image:
                 items = [it for it in items if (it["category"] != "free") or (it["id"] in with_image)]
@@ -118,7 +118,7 @@ async def service_list_posts_cursor(
     if category in ("all", "share") and has_file is not None:
         share_ids = [it["id"] for it in items if it["category"] == "share"]
         if share_ids:
-            rows = await DataShareModel.filter(post_id__in=share_ids).values_list("post_id", "file_url")
+            rows = await ShareFileModel.filter(post_id__in=share_ids).values_list("post_id", "file_url")
             with_file = {pid for (pid, url) in rows if url}
             if has_file:
                 items = [it for it in items if (it["category"] != "share") or (it["id"] in with_file)]

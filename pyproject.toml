@@ -21,6 +21,7 @@ google-auth-httplib2 = "^0.2.0"
 requests = "^2.32.4"
 itsdangerous = "^2.2.0"
 google-generativeai = "^0.3.2"
+boto3 = "^1.40.9"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -29,6 +30,7 @@ black = "^25.1.0"
 ruff = "^0.12.7"
 pytest = "^8.4.1"
 pytest-asyncio = "^1.1.0"
+awscli = "^1.42.9"
 
 [build-system]
 requires = ["poetry-core"]

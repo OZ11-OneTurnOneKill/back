@@ -1,12 +1,17 @@
 from datetime import datetime
 from typing import Optional
-
+from app.core import s3
+import os
 from fastapi import APIRouter, HTTPException, Depends, Query
 from tortoise.exceptions import DoesNotExist
-from app.core.dev_auth import get_current_user_dev
+
+from app.core.attach_limits import FILE_MIMES, FILE_EXTS, MAX_TOTAL_BYTES_PER_POST
+from app.core.dev_auth import get_current_user_dev, UserLite
+from app.dtos.community_dtos.attachments import PresignResp, PresignReq, AttachReq
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import SharePostRequest, SharePostUpdateRequest
 from app.dtos.community_dtos.community_response import SharePostResponse
+from app.services.community_services.attachment_service import attach_share_file, delete_share_file
 from app.services.community_services.community_get_service import service_list_posts_cursor
 from app.services.community_services.community_post_service import service_update_share_post
 from app.utils.post_mapper import to_share_response
@@ -70,3 +75,28 @@ async def patch_share_post(
         )
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Post not found")
+
+
+
+def _ext_of(name: str) -> str:
+    return name.rsplit(".", 1)[-1].lower() if "." in name else ""
+
+@router.post("/post/share/{post_id}/attachments/presigned", response_model=PresignResp)
+async def presign_share_file(post_id: int, body: PresignReq, user: UserLite = Depends(get_current_user_dev)):
+    post = await PostModel.get_or_none(id=post_id, category="share")
+    if not post: raise HTTPException(404, "Post not found")
+    if post.user_id != user.id: raise HTTPException(403, "Not the author")
+
+    ext = _ext_of(body.filename)
+    if ext not in FILE_EXTS or body.content_type not in FILE_MIMES:
+        raise HTTPException(400, "Only pdf/docx allowed with correct MIME")
+
+    return s3.presigned_post_strict("share", body.filename, body.content_type, MAX_TOTAL_BYTES_PER_POST)
+
+@router.post("/post/share/{post_id}/attachments/attach")
+async def attach_share_file_api(post_id: int, body: AttachReq, user: UserLite = Depends(get_current_user_dev)):
+    return await attach_share_file(post_id=post_id, user_id=user.id, key=body.key)
+
+@router.delete("/post/share/{post_id}/attachments/{file_id}")
+async def delete_share_file_api(post_id: int, file_id: int, user: UserLite = Depends(get_current_user_dev)):
+    return await delete_share_file(post_id=post_id, user_id=user.id, file_id=file_id)
