@@ -33,6 +33,8 @@ class PostModel(BaseModel, Model):
     like_count = fields.BigIntField(null=False, default=0)
     comment_count = fields.BigIntField(null=False, default=0)
     is_active = fields.BooleanField(null=False, default=True)
+    free_images : fields.ReverseRelation["FreeImageModel"]
+    share_files : fields.ReverseRelation["ShareFileModel"]
     class Meta:
         table = "posts"
 

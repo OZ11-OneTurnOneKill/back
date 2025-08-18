@@ -57,12 +57,24 @@ async def list_share_posts_cursor(
 
 @router.get("/post/share/{post_id:int}", response_model=SharePostResponse)
 async def get_share_post(post_id: int):
-    post = await PostModel.get_or_none(id=post_id, category=CategoryType.SHARE) \
-                          .select_related("data_share")
+    post = await (
+        PostModel
+        .filter(id=post_id, category=CategoryType.SHARE)
+        .prefetch_related("share_files")
+        .first()
+    )
     if not post:
         raise HTTPException(404, "Post not found")
+
     await service_increment_view(post_id=post_id, category="share")
-    return to_share_response(post)
+    # 최신 view 재조회
+    post = await (
+        PostModel
+        .filter(id=post_id, category=CategoryType.SHARE)
+        .prefetch_related("share_files")
+        .first()
+    )
+    return await to_share_response(post)
 
 @router.patch("/post/share/{post_id}", response_model=SharePostResponse)
 async def patch_share_post(

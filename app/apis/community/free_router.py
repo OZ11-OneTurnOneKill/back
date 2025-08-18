@@ -56,12 +56,24 @@ async def list_free_posts_cursor(
 
 @router.get("/post/free/{post_id:int}", response_model=FreePostResponse)
 async def get_free_post(post_id: int):
-    post = await PostModel.get_or_none(id=post_id, category=CategoryType.FREE) \
-                          .select_related("free_board")
+    post = await (
+        PostModel
+        .filter(id=post_id, category=CategoryType.FREE)
+        .prefetch_related("free_images")   # ← 역방향 프리패치
+        .first()
+    )
     if not post:
         raise HTTPException(404, "Post not found")
+
     await service_increment_view(post_id=post_id, category="free")
-    return to_free_response(post)
+    # 최신 view 재조회
+    post = await (
+        PostModel
+        .filter(id=post_id, category=CategoryType.FREE)
+        .prefetch_related("free_images")
+        .first()
+    )
+    return await to_free_response(post)
 
 @router.patch("/post/free/{post_id}", response_model=FreePostResponse)
 async def patch_free_post(

@@ -25,17 +25,21 @@ async def service_increment_view(*, post_id: int, category: str) -> None:
 async def service_weekly_top5(*, category: str, limit: int = 5) -> dict:
     start_day = date.today() - timedelta(days=6)
 
-    # 7일 합계만 먼저 구한다 (GROUP BY post_id)
+    # 집계와 그룹바이를 먼저 하고, 마지막에 values() 호출
     rows = await (
         PostViewDailyModel
         .filter(day__gte=start_day, post__category=category)
-        .values("post_id")                    # ← group by 기준
-        .annotate(total=Sum("views"))         # ← 집계
+        .group_by("post_id")
+        .annotate(total=Sum("views"))
         .order_by("-total", "-post_id")
         .limit(limit)
+        .values("post_id", "total")
     )
 
     ids = [r["post_id"] for r in rows]
+    if not ids:
+        return {"category": category, "count": 0, "items": []}
+
     posts = await PostModel.filter(id__in=ids)
     post_map = {p.id: p for p in posts}
 
