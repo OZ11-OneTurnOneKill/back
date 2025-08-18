@@ -18,6 +18,7 @@ from app.services.community_services.community_post_service import service_updat
 from app.services.community_services import community_post_service as post_svc
 from app.services.community_services.study_application_service import service_apply_to_study, \
     service_approve_application, service_reject_application
+from app.services.community_services.view_service import service_increment_view
 from app.services.users.users import get_current_user
 from app.utils.post_mapper import to_study_response
 from app.apis.community._state import (
@@ -70,8 +71,7 @@ async def get_study_post(post_id: int):
                           .select_related("study_recruitment")
     if not post:
         raise HTTPException(404, "Post not found")
-    await PostModel.filter(id=post_id, category=CategoryType.STUDY) \
-                   .update(view_count=post.view_count + 1)
+    await service_increment_view(post_id=post_id, category="study")
     return to_study_response(post)
 
 @router.patch("/post/study/{post_id}", response_model=StudyPostResponse)

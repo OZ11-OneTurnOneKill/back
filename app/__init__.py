@@ -17,6 +17,7 @@ from app.apis.community.share_router import router as share_router
 from app.apis.community.common_router import router as common_router
 from app.apis.community.post_router import router as post_router
 from app.apis.community.notification_ws_router import router as ws_router
+from app.apis.community.top5_router import router as top_router
 from app.apis.ai_router.ai_study_plan_router import router as ai_study_plan_router
 from app.apis.ai_router.ai_summary_router import router as ai_summary_router
 # user
@@ -30,6 +31,7 @@ tags_metadata = [
     {"name": "Community · Share", "description": "자료 공유 게시글 API"},
     {"name": "Community · Common", "description": "댓글, 좋아요, 삭제 등 공통 API"},
     {"name": "Community · Post", "description": "각 게시글 전체 조회 API"},
+    {"name": "Community · Top", "description": "각 커뮤니티 Top5 조회 API"},
     {"name": "AI Study Plan", "description": "AI 학습 계획 API"},
     {"name": "AI Summary", "description": "AI 정보 요약 API"},
     {"name": "Google", "description": "Google 소셜 로그인 API"},
@@ -45,7 +47,7 @@ app.include_router(free_router)
 app.include_router(share_router)
 app.include_router(common_router)
 app.include_router(ws_router)
-
+app.include_router(top_router)
 app.include_router(ai_study_plan_router)
 app.include_router(ai_summary_router)
 # user
