@@ -23,6 +23,7 @@ from app.apis.ai_router.ai_summary_router import router as ai_summary_router
 # user
 from app.apis.users.users import router as users_router
 from app.apis.users.google_login import router as google_login
+from app.apis.users.kakao_login import router as kakao_login
 
 
 tags_metadata = [
@@ -35,6 +36,7 @@ tags_metadata = [
     {"name": "AI Study Plan", "description": "AI 학습 계획 API"},
     {"name": "AI Summary", "description": "AI 정보 요약 API"},
     {"name": "Google", "description": "Google 소셜 로그인 API"},
+    {"name": "Kakao", "descriptions": "Kakao 소셜 로그인 API"},
     {"name": "Users", "description": "Users API"},
 ]
 
@@ -48,21 +50,21 @@ app.include_router(share_router)
 app.include_router(common_router)
 app.include_router(ws_router)
 app.include_router(top_router)
+# AI
 app.include_router(ai_study_plan_router)
 app.include_router(ai_summary_router)
 # user
 app.include_router(google_login)
+app.include_router(kakao_login)
 app.include_router(users_router)
 
-# 체크후 삭제
-# load_dotenv()
-# secret_key = os.getenv('SECRET_KEY')
 
 google = Google()
 
 origins = [
     "http://localhost:8000",
     "https://www.evida.site",
+    "https://evida.site",
     "https://backend.evida.site",
     "https://eunbin.evida.site",
 ]
