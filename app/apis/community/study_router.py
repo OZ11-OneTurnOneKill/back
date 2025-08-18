@@ -3,8 +3,9 @@ from typing import Optional, Literal
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from tortoise.exceptions import DoesNotExist
-
+from app.core.constants import PAGE_SIZE
 from app.core.dev_auth import get_current_user_dev
+from app.dtos.community_dtos.Community_list_response import CursorListResponse
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import (
     StudyPostRequest,
@@ -25,6 +26,8 @@ from app.apis.community._state import (
 
 router = APIRouter(prefix="/api/community", tags=["Community · Study"])
 
+SearchIn = Literal["title", "content", "title_content"]
+
 @router.post("/post/study", response_model=StudyPostResponse)
 async def create_study_post(body: StudyPostRequest):
     try:
@@ -41,18 +44,23 @@ async def create_study_post(body: StudyPostRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/post/study/list-cursor")
+@router.get("/post/study/list-cursor", response_model=CursorListResponse)
 async def list_study_posts_cursor(
     q: Optional[str] = Query(None),
+    search_in: SearchIn = Query("title_content"),
     cursor: Optional[int] = Query(None),
+    limit: int = Query(PAGE_SIZE, ge=1, le=50),
     author_id: Optional[int] = Query(None),
     date_from: Optional[datetime] = Query(None),
     date_to: Optional[datetime] = Query(None),
     badge: Optional[Literal["모집중","모집완료"]] = Query(None),
 ):
     return await service_list_posts_cursor(
-        category="study", q=q, cursor=cursor,
-        author_id=author_id, date_from=date_from, date_to=date_to, badge=badge,
+        category="study",
+        q=q, search_in=search_in,
+        cursor=cursor, limit=limit,
+        author_id=author_id, date_from=date_from, date_to=date_to,
+        badge=badge,
     )
 
 
