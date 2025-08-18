@@ -68,8 +68,9 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
 
     await login.save_refresh(user, jwt_refresh, expires_at) # jwt refresh token 저장
 
-    response = RedirectResponse(google.URL)
-    response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=True) # 개발 서버 올릴때 secure = True 변경 필요
+    url = f'{google.URL}+?token={jwt_access}'
+    response = RedirectResponse(url)
+    # response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=True) # 개발 서버 올릴때 secure = True 변경 필요
 
     return response
 
