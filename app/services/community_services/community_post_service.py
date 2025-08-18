@@ -4,17 +4,25 @@ from pytz import timezone
 from typing import Optional
 from tortoise.transactions import in_transaction
 from tortoise.exceptions import DoesNotExist
+
+from app.core.constants import MAX_STUDY_MEMBERS
 from app.models.community import (
     PostModel,
     StudyRecruitmentModel,
     FreeImageModel,
-    ShareFileModel,
+    ShareFileModel, StudyApplicationModel, ApplicationStatus,
 )
 
 KST = timezone("Asia/Seoul")
 
 def _bad_request(msg: str):
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
+
+def _aware_kst(dt: datetime | None) -> datetime | None:
+    """naive로 들어오면 KST로 붙여서 반환"""
+    if dt is None:
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=KST)
 
 # ---------- 내부 유틸: 응답 조립 ----------
 async def service_compose_study_response(post: PostModel, sr: StudyRecruitmentModel) -> dict:
@@ -87,10 +95,11 @@ async def service_create_study_post(
     study_end: datetime,
     max_member: int,
 ) -> dict:
+    if not (1 <= max_member <= MAX_STUDY_MEMBERS):
+        raise HTTPException(400, f"max_member must be between 1 and {MAX_STUDY_MEMBERS}")
     """
     posts + study_recruitments 1:1 생성 (트랜잭션)
     """
-    now = datetime.now(KST)
     async with in_transaction() as tx:
         post = await PostModel.create(
             user_id=user_id,
@@ -208,6 +217,14 @@ async def service_update_study_post(
     if all(v is None for v in (title, content, recruit_start, recruit_end, study_start, study_end, max_member)):
         _bad_request("No fields to update")
 
+    if max_member is not None and not (1 <= max_member <= 30):
+        raise HTTPException(status_code=400, detail="max_member must be between 1 and 30")
+
+    recruit_start = _aware_kst(recruit_start)
+    recruit_end = _aware_kst(recruit_end)
+    study_start = _aware_kst(study_start)
+    study_end = _aware_kst(study_end)
+
     async with in_transaction() as tx:
         # 게시글 조회 + 권한 체크
         post = await PostModel.get_or_none(id=post_id, category="study").using_db(tx)
@@ -230,6 +247,17 @@ async def service_update_study_post(
         # 날짜 일관성 검증
         if not (new_recruit_start <= new_recruit_end <= new_study_start <= new_study_end):
             _bad_request("Invalid date range: recruit_start ≤ recruit_end ≤ study_start ≤ study_end")
+
+        if max_member is not None:
+            approved_count = await StudyApplicationModel.filter(
+                post_id=post_id,
+                status=ApplicationStatus.approved.value
+            ).count()
+            if max_member < approved_count:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"cannot set max_member ({max_member}) below approved count ({approved_count})"
+                )
 
         # 부분 업데이트 적용
         if title is not None:

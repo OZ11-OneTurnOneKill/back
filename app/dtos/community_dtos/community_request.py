@@ -2,6 +2,7 @@ from typing import Optional, Literal
 from pydantic import BaseModel, field_validator, Field, ConfigDict, AliasChoices, constr
 from pydantic_core.core_schema import ValidationInfo
 from datetime import datetime
+from app.core.constants import MAX_STUDY_MEMBERS
 
 
 # ===== (테스트용) 공통 게시글 요청 DTO =====
@@ -20,7 +21,7 @@ class StudyPostRequest(BaseModel):
     recruit_end: datetime
     study_start: datetime
     study_end: datetime
-    max_member: int
+    max_member: int = Field(ge=1,le=MAX_STUDY_MEMBERS)
 
     @field_validator("study_end")
     def validate_study_period(cls, v, info: ValidationInfo):
@@ -61,7 +62,7 @@ class StudyPostUpdateRequest(BaseModel):
     study_end: Optional[datetime] = None
     recruit_start: Optional[datetime] = None
     recruit_end: Optional[datetime] = None
-    max_member: Optional[int] = None
+    max_member: Optional[int] | None = Field(None, ge=1, le=MAX_STUDY_MEMBERS)
 
 class FreePostUpdateRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
