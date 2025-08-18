@@ -1,5 +1,9 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv(), override=False)
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
@@ -19,8 +23,6 @@ from app.apis.ai_router.ai_summary_router import router as ai_summary_router
 from app.apis.users.users import router as users_router
 from app.apis.users.google_login import router as google_login
 
-
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 tags_metadata = [
     {"name": "Community · Study", "description": "스터디 모집 게시글 API"},

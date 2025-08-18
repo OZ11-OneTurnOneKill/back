@@ -1,11 +1,13 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 import os
 from fastapi import APIRouter, HTTPException, Depends, Query
 from tortoise.exceptions import DoesNotExist
 from app.core import s3
+from app.core.constants import PAGE_SIZE
 from app.core.attach_limits import IMAGE_MIMES, IMAGE_EXTS, MAX_TOTAL_BYTES_PER_POST
 from app.core.dev_auth import get_current_user_dev, UserLite
+from app.dtos.community_dtos.Community_list_response import CursorListResponse
 from app.dtos.community_dtos.attachments import PresignResp, PresignReq, AttachReq
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import FreePostRequest, FreePostUpdateRequest
@@ -19,6 +21,8 @@ from app.apis.community._state import KST, post_author_map, post_views
 
 router = APIRouter(prefix="/api/community", tags=["Community · Free"])
 
+SearchIn = Literal["title", "content", "title_content"]
+
 @router.post("/post/free", response_model=FreePostResponse)
 async def create_free_post(body: FreePostRequest):
     try:
@@ -31,18 +35,21 @@ async def create_free_post(body: FreePostRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/post/free/list-cursor")
+@router.get("/post/free/list-cursor", response_model=CursorListResponse)
 async def list_free_posts_cursor(
     q: Optional[str] = Query(None),
+    search_in: SearchIn = Query("title_content"),
     cursor: Optional[int] = Query(None),
+    limit: int = Query(PAGE_SIZE, ge=1, le=50),
     author_id: Optional[int] = Query(None),
     date_from: Optional[datetime] = Query(None),
     date_to: Optional[datetime] = Query(None),
-    has_image: Optional[bool] = Query(None),
 ):
     return await service_list_posts_cursor(
-        category="free", q=q, cursor=cursor,
-        author_id=author_id, date_from=date_from, date_to=date_to, has_image=has_image,
+        category="free",
+        q=q, search_in=search_in,
+        cursor=cursor, limit=limit,
+        author_id=author_id, date_from=date_from, date_to=date_to,
     )
 
 
