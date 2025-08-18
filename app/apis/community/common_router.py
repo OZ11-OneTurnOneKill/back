@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from app.core.dev_auth import get_current_user_dev
 from app.dtos.community_dtos.community_request import CommentRequest, CommentUpdateRequest
 from app.dtos.community_dtos.community_response import CommentResponse, CommentListResponse
 from app.apis.community._state import (
@@ -13,6 +12,7 @@ from app.services.community_services.community_common_service import (
     service_delete_post_by_post_id, service_create_comment, service_list_comments, service_update_comment,
     service_delete_comment
 )
+from app.services.users.users import get_current_user
 
 router = APIRouter(prefix="/api/community", tags=["Community · Common"])
 
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/community", tags=["Community · Common"])
 async def create_comment(
     post_id: int,
     body: CommentRequest,
-    current_user = Depends(get_current_user_dev),               # 헤더에서 user_id 주입
+    current_user = Depends(get_current_user),               # 헤더에서 user_id 주입
 ):
     return await service_create_comment(
         post_id=post_id,
@@ -44,7 +44,7 @@ async def list_comments(
 async def update_comment(
     comment_id: int,
     body: CommentUpdateRequest,
-    current_user = Depends(get_current_user_dev),   # X-User-Id
+    current_user = Depends(get_current_user),   # X-User-Id
 ):
     return await service_update_comment(
         comment_id=comment_id,
@@ -56,7 +56,7 @@ async def update_comment(
 @router.delete("/comment/{comment_id}")
 async def delete_comment(
     comment_id: int,
-    current_user = Depends(get_current_user_dev),   # X-User-Id
+    current_user = Depends(get_current_user),   # X-User-Id
 ):
     return await service_delete_comment(
         comment_id=comment_id,
@@ -70,10 +70,10 @@ async def read_like_count(post_id: int):
 
 
 @router.post("/post/{post_id}/like")
-async def toggle_like(post_id: int, current_user = Depends(get_current_user_dev)):
+async def toggle_like(post_id: int, current_user = Depends(get_current_user)):
     return await service_toggle_like_by_post_id(post_id=post_id, user_id=current_user.id)
 
 
 @router.delete("/post/{post_id}")
-async def delete_post(post_id: int, current_user = Depends(get_current_user_dev)):
+async def delete_post(post_id: int, current_user = Depends(get_current_user)):
     return await service_delete_post_by_post_id(post_id=post_id, user_id=current_user.id)
