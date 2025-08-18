@@ -43,11 +43,13 @@ async def service_compose_free_response(post: PostModel) -> dict:
         .values("id", "image_url", "mime_type", "size_bytes", "created_at")
     return {
         "id": post.id,
+        "category": "free",
         "title": post.title,
         "content": post.content,
-        "category": "free",
         "author_id": post.user_id,
         "views": post.view_count,
+        "like_count": post.like_count,
+        "comment_count": post.comment_count,
         "images": images,
         "created_at": post.created_at,
         "updated_at": post.updated_at,
@@ -60,12 +62,14 @@ async def service_compose_share_response(post) -> dict:
     )
     return {
         "id": post.id,
+        "category": "share",
         "title": post.title,
         "content": post.content,
-        "category": "share",
         "author_id": post.user_id,
         "views": post.view_count,
-        "files": files,  # ← 다중 첨부
+        "like_count": post.like_count,
+        "comment_count": post.comment_count,
+        "files": files,
         "created_at": post.created_at,
         "updated_at": post.updated_at,
     }
@@ -287,18 +291,8 @@ async def service_update_free_post(
         if changed:
             await post.save(using_db=tx)
 
-        # 3) 첨부 이미지: 보내졌을 때만 처리 (문자열=추가/교체, None=제거)
-        fb: Optional[FreeImageModel] = await FreeImageModel.get_or_none(post_id=post_id).using_db(tx)
-        if image_url is not None:  # 키가 왔을 때만
-            if fb:
-                fb.image_url = image_url  # None이면 컬럼을 비움(null 허용 필요)
-                await fb.save(using_db=tx)
-            else:
-                if image_url is not None:
-                    fb = await FreeImageModel.create(post_id=post_id, image_url=image_url, using_db=tx)
-    # 응답 조립
-    fb = await FreeImageModel.get_or_none(post_id=post_id)  # 최신값 보장(옵션)
-    return await service_compose_free_response(post, fb)
+
+    return await service_compose_free_response(post)
 
 
 async def service_update_share_post(
@@ -332,16 +326,5 @@ async def service_update_share_post(
         if changed:
             await post.save(using_db=tx)
 
-        # 3) 첨부 파일: 보내졌을 때만 처리 (문자열=추가/교체, None=제거)
-        ds: Optional[ShareFileModel] = await ShareFileModel.get_or_none(post_id=post_id).using_db(tx)
-        if file_url is not None:  # 키가 왔을 때만
-            if ds:
-                ds.file_url = file_url  # None이면 컬럼을 비움(null 허용 필요)
-                await ds.save(using_db=tx)
-            else:
-                if file_url is not None:
-                    ds = await ShareFileModel.create(post_id=post_id, file_url=file_url, using_db=tx)
-    # 응답 조립 (프로젝트에 맞는 함수명으로 사용)
-    ds = await ShareFileModel.get_or_none(post_id=post_id)
 
-    return await service_compose_share_response(post, ds)
+    return await service_compose_share_response(post)
