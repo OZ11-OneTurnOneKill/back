@@ -56,7 +56,7 @@ async def service_compose_free_response(post: PostModel) -> dict:
     }
 
 
-async def service_compose_share_response(post) -> dict:
+async def service_compose_share_response(post: PostModel) -> dict:
     files = await ShareFileModel.filter(post_id=post.id).order_by("-id").values(
         "id", "file_url", "mime_type", "size_bytes", "created_at"
     )
@@ -135,13 +135,7 @@ async def service_create_free_post(
     return await service_compose_free_response(post)
 
 
-async def service_create_share_post(
-    *,
-    user_id: int,
-    title: str,
-    content: str,
-    file_url: Optional[str] = None,
-) -> dict:
+async def service_create_share_post(*, user_id: int, title: str, content: str) -> dict:
     async with in_transaction() as tx:
         post = await PostModel.create(
             user_id=user_id,
@@ -153,12 +147,7 @@ async def service_create_share_post(
             comment_count=0,
             using_db=tx,
         )
-        ds = None
-        if file_url is not None:
-            ds = await ShareFileModel.create(
-                post_id=post.id, file_url=file_url, using_db=tx
-            )
-    return await service_compose_share_response(post, ds)
+    return await service_compose_share_response(post)
 
 
 # ---------- 조회(Read) + 조회수 증가 ----------

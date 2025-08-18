@@ -30,8 +30,7 @@ async def create_share_post(body: SharePostRequest):
         return await post_svc.service_create_share_post(
             user_id=body.user_id,
             title=body.title,
-            content=body.content,
-            file_url=body.file_url,
+            content=body.content
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
