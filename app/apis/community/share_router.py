@@ -55,7 +55,7 @@ async def list_share_posts_cursor(
     )
 
 
-@router.get("/post/share/{post_id}", response_model=SharePostResponse)
+@router.get("/post/share/{post_id:int}", response_model=SharePostResponse)
 async def get_share_post(post_id: int):
     post = await PostModel.get_or_none(id=post_id, category=CategoryType.SHARE) \
                           .select_related("data_share")

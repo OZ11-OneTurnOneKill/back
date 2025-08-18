@@ -54,7 +54,7 @@ async def list_free_posts_cursor(
     )
 
 
-@router.get("/post/free/{post_id}", response_model=FreePostResponse)
+@router.get("/post/free/{post_id:int}", response_model=FreePostResponse)
 async def get_free_post(post_id: int):
     post = await PostModel.get_or_none(id=post_id, category=CategoryType.FREE) \
                           .select_related("free_board")
