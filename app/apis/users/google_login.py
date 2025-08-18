@@ -74,7 +74,13 @@ async def get_access_token(request: Request): # access token 교환
     # return token_data
     # url = f'{google.URL}+?token={jwt_access}'
     response = RedirectResponse(google.URL)
-    response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=True) # 개발 서버 올릴때 secure = True 변경 필요
+    response.set_cookie(
+        key='access_token',
+        value=jwt_access,
+        httponly=True,
+        secure=google.IS_SECURE,
+        samesite=None,
+        domain='evida.site') # 개발 서버 올릴때 secure = True 변경 필요
 
     return response
 
