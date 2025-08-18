@@ -3,6 +3,7 @@ import json
 from docutils.nodes import status
 from app.configs.base_config import Google
 from app.dtos.users import PatchNickname
+from app.models.user import UserModel
 from app.services.users.users import get_current_user, update_user
 from app.services.users.login import user_check
 from fastapi import APIRouter, Request, Depends
@@ -27,6 +28,9 @@ async def now(request: Request):
     return f'로그인 일단 된듯'
 @router.get('/myinfo')
 async def get_myinfo(user = Depends(get_current_user)):
+    """
+    유저 정보를 조회하는 라우터.
+    """
     return {'id': user.id, 'nickname': user.nickname, 'email': user.email}
 
 
@@ -51,7 +55,7 @@ async def get_myinfo(user = Depends(get_current_user)):
     return user_info
 """
 @router.patch('/myinfo')
-async def patch_nickname(patch_nickname: PatchNickname, user = Depends(get_current_user)) -> RedirectResponse:
+async def patch_nickname(patch_nickname: PatchNickname, user = Depends(get_current_user)):
     """
     처음 가입할때 랜덤으로 생성된 닉네임을 유저가 원하는 닉네임으로 변경할 수 있다.
     :user: 로그인한 유저 데이터
@@ -60,5 +64,8 @@ async def patch_nickname(patch_nickname: PatchNickname, user = Depends(get_curre
     updated_nickname = await update_user(user, patch_nickname.nickname) # 닉네임 변경 함수 실행
     print(updated_nickname, ' !!!!변경완료!!!!')
 
-    url = google.URL + '/api/v1/users/myinfo'
-    return RedirectResponse(url=url) # 변경 후 `myinfo`로 페이지 이동
+    return {
+        'user_id' : user.id,
+        'new_nickname' : user.nickname,
+        'msg' : '닉네임 변경이 완료 되었습니다.'
+    }

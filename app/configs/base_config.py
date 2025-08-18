@@ -33,6 +33,7 @@ class Google(BaseSettings):
 
     SECRET_KEY: str = 'secret'
     IS_SECURE : bool = True
+    DOMAIN : str = 'evida.site'
 
 
 class Tokens(BaseSettings):

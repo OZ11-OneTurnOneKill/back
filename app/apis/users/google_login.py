@@ -80,7 +80,7 @@ async def get_access_token(request: Request): # access token 교환
         httponly=True,
         secure=google.IS_SECURE,
         samesite=None,
-        domain='evida.site') # 개발 서버 올릴때 secure = True 변경 필요
+        domain=google.DOMAIN) # 개발 서버 올릴때 secure = True 변경 필요
 
     return response
 
