@@ -32,6 +32,7 @@ class Google(BaseSettings):
     URL: str = 'url'
 
     SECRET_KEY: str = 'secret'
+    IS_SECURE : bool = True
 
 
 class Tokens(BaseSettings):
