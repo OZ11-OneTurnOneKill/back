@@ -196,3 +196,22 @@ class NotificationModel(BaseModel, Model):
 
     def __str__(self) -> str:
         return f"<Notification user={self.user_id} app={self.application_id} read={self.is_read}>"
+
+
+class PostViewDailyModel(Model):
+    post = fields.ForeignKeyField(
+        "models.PostModel",
+        related_name="view_dailies",
+        on_delete=fields.CASCADE,
+        null=False,
+    )
+    day = fields.DateField(null=False)
+    views = fields.IntField(null=False, default=0)
+
+    class Meta:
+        table = "post_view_daily"
+        unique_together = (("post", "day"),)      # 같은 글+날짜는 1행
+        indexes = (("day",), ("post_id", "day"))  # 조회/기간 합계용 인덱스
+
+    def __str__(self) -> str:
+        return f"<PostViewDaily post={self.post_id} day={self.day} views={self.views}>"

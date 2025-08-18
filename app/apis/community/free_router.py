@@ -13,6 +13,7 @@ from app.dtos.community_dtos.community_request import FreePostRequest, FreePostU
 from app.dtos.community_dtos.community_response import FreePostResponse
 from app.services.community_services.attachment_service import attach_free_image, delete_free_image
 from app.services.community_services.community_get_service import service_list_posts_cursor
+from app.services.community_services.view_service import service_increment_view
 from app.services.users.users import get_current_user
 from app.utils.post_mapper import to_free_response
 from app.services.community_services import community_post_service as post_svc
@@ -59,8 +60,7 @@ async def get_free_post(post_id: int):
                           .select_related("free_board")
     if not post:
         raise HTTPException(404, "Post not found")
-    await PostModel.filter(id=post_id, category=CategoryType.FREE) \
-                   .update(view_count=post.view_count + 1)
+    await service_increment_view(post_id=post_id, category="free")
     return to_free_response(post)
 
 @router.patch("/post/free/{post_id}", response_model=FreePostResponse)

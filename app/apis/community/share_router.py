@@ -15,6 +15,7 @@ from app.dtos.community_dtos.community_response import SharePostResponse
 from app.services.community_services.attachment_service import attach_share_file, delete_share_file
 from app.services.community_services.community_get_service import service_list_posts_cursor
 from app.services.community_services.community_post_service import service_update_share_post
+from app.services.community_services.view_service import service_increment_view
 from app.services.users.users import get_current_user
 from app.utils.post_mapper import to_share_response
 from app.services.community_services import community_post_service as post_svc
@@ -60,8 +61,7 @@ async def get_share_post(post_id: int):
                           .select_related("data_share")
     if not post:
         raise HTTPException(404, "Post not found")
-    await PostModel.filter(id=post_id, category=CategoryType.SHARE) \
-                   .update(view_count=post.view_count + 1)
+    await service_increment_view(post_id=post_id, category="share")
     return to_share_response(post)
 
 @router.patch("/post/share/{post_id}", response_model=SharePostResponse)
