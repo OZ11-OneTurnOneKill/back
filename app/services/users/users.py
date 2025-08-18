@@ -13,7 +13,41 @@ from google.oauth2.credentials import Credentials
 from app.services.users.login import user_check, decode_token
 
 
-security = HTTPBearer() # 토큰 헤더 받아옴
+async def get_current_user(request: Request):
+    """
+    JWT 토큰을 통해 로그인한 유저를 검증한다.
+
+    """
+    # 쿠키에 저장된 토큰을 가져옴
+    token = request.cookies.get("access_token")
+    # 토큰 검증
+    if not token:
+        raise HTTPException( # 토큰이 없을 경우, 에러 발생
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='access token을 조회할 수 없습니다.'
+        )
+
+    payload = decode_token(token)
+    print('payload', payload)
+
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="유효하지 않은 access token 입니다.")
+
+    user_id = payload.get('sub')
+    print('user_id', user_id)
+    user = await UserModel.get_or_none(id=user_id)
+    print('user', user)
+    if not user:
+        raise HTTPException(status_code=404, detail='access token에 유저 정보가 없습니다.')
+
+    return user
+
+'''
+Authorization 헤더 방식으로 구현.
+쿠키 방식 사용으로 사용하지 않음.
+
+
+security = HTTPBearer() # 토큰 헤더 받아옴 `fastapi.security / HTTPBearer
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
@@ -39,7 +73,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=404, detail='데이터 없음')
 
     return user
-
+'''
 
 async def get_or_create_user(user_info):
     """
@@ -93,9 +127,9 @@ async def update_user(user, update):
             detail='이미 사용 중인 닉네임 입니다.'
         )
     # 없을 경우 닉네임 변경
-    await UserModel.filter(id=user.id).update(
+    info = await UserModel.filter(id=user.id).update(
         nickname=update,
         updated_at=datetime.now(timezone.utc),
     )
 
-    return update
+    return update, info
