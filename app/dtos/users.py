@@ -45,3 +45,6 @@ class GetMyInfo(BaseModel):
     profile_image_url : str # Social Account
     email : EmailStr # User
 
+# 닉네임 수정
+class PatchNickname(BaseModel):
+    nickname : str = Field(min_length=1, max_length=8) # 닉네임

@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timezone
+
 import httpx
 import random
 
@@ -8,26 +10,17 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.dtos.users import User, GetMyInfo
 from app.models.user import UserModel
 from google.oauth2.credentials import Credentials
-
 from app.services.users.login import user_check, decode_token
 
-# profile data
-# async def info(credentials: Credentials): # 구글API에 사용자 정보 요청
-#     async with httpx.AsyncClient() as client:
-#         response = await client.get(
-#             'https://www.googleapis.com/oauth2/v2/userinfo',
-#             headers={'Authorization': f'Bearer {credentials.token}'}
-#         )
-#         # print('요청에 문제가 발생했습니다.')
-#         response.raise_for_status() # 요청 실패할 경우, 예외 발생
-#
-#         user_info = response.json() # json으로 데이터 받아옴.
-#
-#         return user_info
 
 security = HTTPBearer() # 토큰 헤더 받아옴
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    JWT 토큰을 이용해 로그인한 유저를 인증 및 정보를 리턴한다.
+    :param credentials:
+    :return:
+    """
     token = credentials.credentials
     print('get_current_user, token', token)
     if token.startswith("Bearer "):
@@ -46,30 +39,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=404, detail='데이터 없음')
 
     return user
-
-# async def get_cookie_access(request: Request):
-#     # token = request.cookies.get('access_token')
-#     # print(token)
-#      user_data= await get_current_user()
-#     return
-
-async def get_info(user : UserModel) -> GetMyInfo:
-    # info = await UserModel.get(id=user_id)
-
-    print(GetMyInfo(
-        id=user.id,
-        nickname=user.nickname,  # Social Account
-        profile_image_url=user.profile_image_url,  # Social Account
-        email=user.email,
-    ))
-    return GetMyInfo(
-        id = user.id,
-        nickname = user.nickname, # Social Account
-        profile_image_url = user.profile_image_url,  # Social Account
-        email = user.email,
-    )
-
-
 
 
 async def get_or_create_user(user_info):
@@ -106,28 +75,27 @@ async def get_or_create_user(user_info):
     return user
 
 
-"""async def get_google_user_data(credentials: Credentials):
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            'https://www.googleapis.com/oauth2/v2/userinfo',
-            headers={'Authorization': f'Bearer {credentials.token}'}
+async def update_user(user, update):
+    """
+    처음 가입할때 랜덤으로 생성된 닉네임을 유저가 원하는 닉네임으로 변경할 수 있다.
+    :param user: 유저 데이터
+    :param: update, 변경하고자 하는 닉네임
+    :return: 변경된 닉네임
+    """
+
+    # DB 상에서 변경하려고 하는 닉네임이 있는지 확인
+    check_nickname = await UserModel.get_or_none(nickname=update)
+
+    # 닉네임 중복 확인
+    if check_nickname is not None and check_nickname.id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail='이미 사용 중인 닉네임 입니다.'
         )
-        response.raise_for_status()
-        return response.json()"""
+    # 없을 경우 닉네임 변경
+    await UserModel.filter(id=user.id).update(
+        nickname=update,
+        updated_at=datetime.now(timezone.utc),
+    )
 
-
-async def save_google_userdata(credentials: Credentials):
-    # 구글 유저 데이터 가져오기
-    async with httpx.AsyncClient() as client:
-        url = 'https://www.googleapis.com/oauth2/v2/userinfo'
-        response = await client.get(
-            url,
-            headers={'Authorization': f'Bearer {credentials.token}'}
-        )
-        response.raise_for_status()
-        user_info = response.json()
-
-        user = await get_or_create_user(user_info)
-
-    return user
-
+    return update

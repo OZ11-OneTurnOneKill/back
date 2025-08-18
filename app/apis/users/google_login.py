@@ -11,7 +11,7 @@ from app.configs.base_config import Google
 from app.models.user import RefreshTokenModel, UserModel
 from app.services.users.google_login import create_authorization_url, access_token, info, revoke
 from app.services.users import login
-from app.services.users.users import save_google_userdata, get_current_user, get_or_create_user
+from app.services.users.users import get_current_user, get_or_create_user
 from google.oauth2.credentials import Credentials
 
 
@@ -68,15 +68,15 @@ async def get_access_token(request: Request): # access token 교환
 
     await login.save_refresh(user, jwt_refresh, expires_at) # jwt refresh token 저장
 
-    token_data = {
-        'access_token': jwt_access,
-    }
-    return token_data
+    # token_data = {
+    #     'access_token': jwt_access,
+    # }
+    # return token_data
     # url = f'{google.URL}+?token={jwt_access}'
-    # response = RedirectResponse(url)
-    # # response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=True) # 개발 서버 올릴때 secure = True 변경 필요
-    #
-    # return response
+    response = RedirectResponse(google.URL)
+    response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=True) # 개발 서버 올릴때 secure = True 변경 필요
+
+    return response
 
 @router.post('/logout')
 # @router.get('/logout') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제

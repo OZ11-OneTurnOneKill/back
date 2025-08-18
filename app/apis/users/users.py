@@ -1,5 +1,9 @@
 import json
-from app.services.users.users import get_info, get_current_user
+
+from docutils.nodes import status
+from app.configs.base_config import Google
+from app.dtos.users import PatchNickname
+from app.services.users.users import get_current_user, update_user
 from app.services.users.login import user_check
 from fastapi import APIRouter, Request, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -10,6 +14,7 @@ from google.oauth2.credentials import Credentials
 router = APIRouter(prefix='/api/v1/users', tags=['Users'])
 
 security = HTTPBearer() # 토큰 헤더 받아옴
+google = Google()
 
 @router.get('/logintest')
 async def now(request: Request):
@@ -23,14 +28,7 @@ async def now(request: Request):
 @router.get('/myinfo')
 async def get_myinfo(user = Depends(get_current_user)):
     return {'id': user.id, 'nickname': user.nickname, 'email': user.email}
-    # return await get_info(user)
-    # return '환영합니다:) 로그인 성공했습니다.'
-    # return {
-    #     "nickname": current_user.nickname,
-    #     "profile_image_url": current_user.profile_image_url,
-    #     "email": current_user.social_account.email if current_user.social_account else None,
-    #     "provider": current_user.social_account.provider if current_user.social_account else None
-    # }
+
 
 """async def get_myinfo(request:Request) -> dict:
     # session에 credentials 여부 확인
@@ -52,3 +50,15 @@ async def get_myinfo(user = Depends(get_current_user)):
 
     return user_info
 """
+@router.patch('/myinfo')
+async def patch_nickname(patch_nickname: PatchNickname, user = Depends(get_current_user)) -> RedirectResponse:
+    """
+    처음 가입할때 랜덤으로 생성된 닉네임을 유저가 원하는 닉네임으로 변경할 수 있다.
+    :user: 로그인한 유저 데이터
+    :patch_nickname: 변경하고자 하는 닉네임
+    """
+    updated_nickname = await update_user(user, patch_nickname.nickname) # 닉네임 변경 함수 실행
+    print(updated_nickname, ' !!!!변경완료!!!!')
+
+    url = google.URL + '/api/v1/users/myinfo'
+    return RedirectResponse(url=url) # 변경 후 `myinfo`로 페이지 이동
