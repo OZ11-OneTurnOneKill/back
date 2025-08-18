@@ -22,7 +22,7 @@ async def service_increment_view(*, post_id: int, category: str) -> None:
         else:
             await PostViewDailyModel.create(post_id=post_id, day=today, views=1, using_db=tx)
 
-async def service_top_weekly_by_category(*, category: str, limit: int = 5) -> dict:
+async def service_weekly_top5(*, category: str, limit: int = 5) -> dict:
     start_day = date.today() - timedelta(days=6)
 
     # 7일 합계만 먼저 구한다 (GROUP BY post_id)
