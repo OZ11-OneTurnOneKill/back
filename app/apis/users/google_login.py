@@ -31,7 +31,7 @@ async def get_authorization_url(request:Request) -> RedirectResponse:
     return RedirectResponse(authorization_url) # google 소셜 로그인 페이지로 이동
 
 @router.get("/login/callback", name='callback') # 구글에게 로그인 관련 데이터를 받음
-async def get_access_token(request: Request) -> RedirectResponse: # access token 교환
+async def get_access_token(request: Request): # access token 교환
     """
     이전 단계(`/login`)에서 유저의 동의까지 마무리.
     이를 토대로 유저 데이터를 받기 위한 access token 발급 단계.
@@ -68,11 +68,15 @@ async def get_access_token(request: Request) -> RedirectResponse: # access token
 
     await login.save_refresh(user, jwt_refresh, expires_at) # jwt refresh token 저장
 
-    url = f'{google.URL}+?token={jwt_access}'
-    response = RedirectResponse(url)
-    # response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=True) # 개발 서버 올릴때 secure = True 변경 필요
-
-    return response
+    token_data = {
+        'access_token': jwt_access,
+    }
+    return token_data
+    # url = f'{google.URL}+?token={jwt_access}'
+    # response = RedirectResponse(url)
+    # # response.set_cookie(key='access_token', value=jwt_access, httponly=True, secure=True) # 개발 서버 올릴때 secure = True 변경 필요
+    #
+    # return response
 
 @router.post('/logout')
 # @router.get('/logout') # 로그아웃 테스트 확인용 get 라우터, front 연결 시 삭제
