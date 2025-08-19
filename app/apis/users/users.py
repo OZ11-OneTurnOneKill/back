@@ -8,7 +8,7 @@ from app.services.users.users import get_current_user, update_user
 from app.services.users.login import user_check
 from fastapi import APIRouter, Request, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from starlette.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from google.oauth2.credentials import Credentials
 
 
