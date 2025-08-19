@@ -101,6 +101,7 @@ async def create_study_plan(
 async def get_user_study_plans(
         limit: int = 10,
         offset: int = 0,
+        user_id: Optional[int] = None,
         study_plan_service: StudyPlanService = Depends(get_study_plan_service),
         current_user = Depends(get_current_user),
 ) -> AsyncTaskResponse:
@@ -116,9 +117,9 @@ async def get_user_study_plans(
         사용자의 학습계획 목록
     """
     try:
-        user_id = current_user.id
+        target_user_id = user_id if user_id is not None else current_user.id
         study_plans = await study_plan_service.get_user_study_plans(
-            user_id=user_id,
+            user_id=target_user_id,
             limit=limit,
             offset=offset
         )
@@ -132,7 +133,8 @@ async def get_user_study_plans(
         )
 
     except Exception as e:
-        logger.error(f"Error fetching study plans for user {current_user.id}: {str(e)}")
+        target_user_id = user_id if user_id is not None else current_user.id
+        logger.error(f"Error fetching study plans for user {target_user_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=AsyncTaskResponse(
