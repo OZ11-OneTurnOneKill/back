@@ -45,6 +45,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:8000",
+        "http://localhost:5173",
         "https://www.evida.site",
         "https://evida.site",
         "https://backend.evida.site",
