@@ -89,6 +89,7 @@ async def get_access_token(request: Request): # access token 교환
 async def post_revoke(request: Request, current_user: Annotated[UserModel, Depends(get_current_user)]) -> RedirectResponse:
     """
     유저가 로그아웃 요청시, 로그아웃 관련 로직들이 실행.
+    response(revoke) : 세션 삭제 및 쿠키 삭제 후 지정한 url로 이동
     """
     print('라우터에서의 함수 실행 완')
     response = await revoke(request, current_user)
