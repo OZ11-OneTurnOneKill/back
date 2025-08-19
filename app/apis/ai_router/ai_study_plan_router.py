@@ -1,4 +1,3 @@
-# app/apis/ai/ai_study_plan_router.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Dict, Any, Optional
 import logging
@@ -16,6 +15,7 @@ from app.dtos.ai.challenge_progress import (
 )
 from app.services.ai_services.study_plan_service import StudyPlanService
 from app.services.ai_services.gemini_service import GeminiService
+from app.services.users.users import get_current_user
 from app.configs.gemini_connect import gemini_api_key
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ def get_study_plan_service() -> StudyPlanService:
 async def create_study_plan(
         user_id: int,
         request: StudyPlanRequest,
-        study_plan_service: StudyPlanService = Depends(get_study_plan_service)
+        study_plan_service: StudyPlanService = Depends(get_study_plan_service),
 ) -> AsyncTaskResponse:
     """AI 공부 학습 계획 생성 (챌린지 모드 지원)
 
@@ -53,7 +53,7 @@ async def create_study_plan(
     try:
         logger.info(f"Creating study plan for user {user_id} (challenge: {request.is_challenge})")
 
-        # ✅ 챌린지 지원 학습계획 생성
+        # 챌린지 지원 학습계획 생성
         study_plan = await study_plan_service.create_study_plan(
             user_id=user_id,
             request=request
@@ -157,7 +157,7 @@ async def get_study_plan_by_id(
         학습계획 상세 정보 (챌린지 정보 포함)
     """
     try:
-        # ✅ 챌린지 정보 포함 조회
+        # 챌린지 정보 포함 조회
         study_plan = await study_plan_service.get_study_plan_with_challenge(
             study_plan_id=plan_id,
             user_id=user_id
