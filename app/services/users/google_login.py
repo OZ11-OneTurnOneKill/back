@@ -13,7 +13,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow # 사용자 승인
 from fastapi import Request, HTTPException
-from starlette.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 
 from app.services.users.users import get_or_create_user
 
@@ -178,10 +178,14 @@ async def revoke(request: Request, current_user: UserModel):
     - 세션 삭제 및 쿠키에 담겨진 데이터를 삭제.
     - 구글 로그아웃 API 호출
     - 설정한 url로 리디렉션 진행 (303)
+        -> 따로 프론트에서 연결 진행함으로 리디렉션 제거
     """
     if 'credentials' not in request.session: # 세션에 저장된 데이터가 없을 경우
         # print('세션 데이터 일치하지 않습니다. 확인 필요.')
-        response = RedirectResponse(url=google.URL, status_code=303) # 303 : See Other, get으로 요청 전환
+        # response = RedirectResponse(url=google.URL, status_code=303) # 303 : See Other, get으로 요청 전환
+        response = JSONResponse(
+            {'msg' : '로그아웃 완료'}
+        )
         response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None, domain=google.DOMAIN)
         return response
 
@@ -204,7 +208,10 @@ async def revoke(request: Request, current_user: UserModel):
     # refresh token 무효화
     await revoke_refresh(current_user)
 
-    response = RedirectResponse(url=google.URL, status_code=303)  # 303 : See Other, get으로 요청 전환
+    # response = RedirectResponse(url=google.URL, status_code=303)  # 303 : See Other, get으로 요청 전환
+    response = JSONResponse(
+        {'msg' : '로그아웃 완료'}
+    )
     response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None, domain=google.DOMAIN)
 
     return response
