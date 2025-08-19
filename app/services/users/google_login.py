@@ -175,11 +175,14 @@ async def info(credentials: Credentials): # 구글API에 사용자 정보 요청
 async def revoke(request: Request, current_user: UserModel):
     """
     유저의 로그아웃 요청시, 세션과 쿠키에 저장된 데이터 무효화와 DB에 상태를 반영한다.
+    - 세션 삭제 및 쿠키에 담겨진 데이터를 삭제.
+    - 구글 로그아웃 API 호출
+    - 설정한 url로 리디렉션 진행 (303)
     """
     if 'credentials' not in request.session: # 세션에 저장된 데이터가 없을 경우
         # print('세션 데이터 일치하지 않습니다. 확인 필요.')
-        response = RedirectResponse(google.URL)
-        response.delete_cookie('access_token', path='/')
+        response = RedirectResponse(url=google.URL, status_code=303) # 303 : See Other, get으로 요청 전환
+        response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None)
         return response
 
     credentials = Credentials.from_authorized_user_info(
@@ -201,8 +204,8 @@ async def revoke(request: Request, current_user: UserModel):
     # refresh token 무효화
     await revoke_refresh(current_user)
 
-    response = RedirectResponse(google.URL)
-    response.delete_cookie('access_token', path='/')
+    response = RedirectResponse(url=google.URL, status_code=303)  # 303 : See Other, get으로 요청 전환
+    response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None)
 
     return response
 
