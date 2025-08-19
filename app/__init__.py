@@ -41,20 +41,19 @@ tags_metadata = [
 
 app = FastAPI(default_response_class=ORJSONResponse, openapi_tags=tags_metadata)
 
-origins = [
-    "http://localhost:8000",
-    "https://www.evida.site",
-    "https://evida.site",
-    "https://backend.evida.site",
-    "https://eunbin.evida.site",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins, # API를 호출할 수 있는 도메인을 지정.
-    allow_credentials=True, # 자격증명(쿠키, http 인증) 허용 여부
-    allow_methods=["*"], # 허용할 http 메소드
-    allow_headers=["*"], # 허용할 http 헤더
+    allow_origins=[
+        "http://localhost:8000",
+        "https://www.evida.site",
+        "https://evida.site",
+        "https://backend.evida.site",
+        "https://eunbin.evida.site",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    max_age=600,                  # (옵션) 프리플라이트 캐시
 )
 
 google = Google()
