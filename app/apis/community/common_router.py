@@ -14,7 +14,7 @@ from app.services.community_services.community_common_service import (
 )
 from app.services.users.users import get_current_user
 
-router = APIRouter(prefix="/api/community", tags=["Community · Common"])
+router = APIRouter(prefix="/api/v1/community", tags=["Community · Common"])
 
 @router.post("/post/{post_id}/comment", response_model=CommentResponse)
 async def create_comment(

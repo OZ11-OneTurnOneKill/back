@@ -5,7 +5,7 @@ from app.core.realtime import notification_broker
 from app.models.community import NotificationModel
 
 
-router = APIRouter(prefix="/api/community", tags=["notification_WebSocket"])
+router = APIRouter(prefix="/api/v1/community", tags=["notification_WebSocket"])
 
 @router.websocket("/ws/notifications")
 async def ws_notifications(websocket: WebSocket):

@@ -20,7 +20,7 @@ from app.services.community_services import community_post_service as post_svc
 from app.services.community_services.community_post_service import service_update_free_post
 from app.apis.community._state import KST, post_author_map, post_views
 
-router = APIRouter(prefix="/api/community", tags=["Community · Free"])
+router = APIRouter(prefix="/api/v1/community", tags=["Community · Free"])
 
 SearchIn = Literal["title", "content", "title_content"]
 

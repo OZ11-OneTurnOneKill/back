@@ -6,7 +6,7 @@ from app.core.constants import PAGE_SIZE
 from app.dtos.community_dtos.Community_list_response import CursorListResponse
 from app.services.community_services.community_get_service import service_list_posts_cursor
 
-router = APIRouter(prefix="/api/community", tags=["Community · Post"])
+router = APIRouter(prefix="/api/v1/community", tags=["Community · Post"])
 
 SearchIn = Literal["title", "content", "title_content"]
 

@@ -25,7 +25,7 @@ from app.apis.community._state import (
     KST, post_author_map, recruit_end_cache, post_views, notification_manager
 )
 
-router = APIRouter(prefix="/api/community", tags=["Community · Study"])
+router = APIRouter(prefix="/api/v1/community", tags=["Community · Study"])
 
 SearchIn = Literal["title", "content", "title_content"]
 

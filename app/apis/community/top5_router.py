@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query
 
 from app.services.community_services.view_service import service_weekly_top5
 
-router = APIRouter(prefix="/api/community", tags=["Community · Top"])
+router = APIRouter(prefix="/api/v1/community", tags=["Community · Top"])
 
 @router.get("/post/study/top-weekly")
 async def top_weekly_study(limit: int = Query(5, ge=1, le=20)):
