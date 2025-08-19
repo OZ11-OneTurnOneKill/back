@@ -65,6 +65,7 @@ google = Google()
 origins = [
     "http://localhost:8000",
     "https://www.evida.site",
+    "https://evida.site",
     "https://backend.evida.site",
     "https://eunbin.evida.site",
 ]
