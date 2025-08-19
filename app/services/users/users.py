@@ -109,7 +109,7 @@ async def get_or_create_user(user_info):
     return user
 
 
-async def update_user(user, update):
+async def update_user(user, update_nickname):
     """
     처음 가입할때 랜덤으로 생성된 닉네임을 유저가 원하는 닉네임으로 변경할 수 있다.
     :param user: 유저 데이터
@@ -118,7 +118,7 @@ async def update_user(user, update):
     """
 
     # DB 상에서 변경하려고 하는 닉네임이 있는지 확인
-    check_nickname = await UserModel.get_or_none(nickname=update)
+    check_nickname = await UserModel.get_or_none(nickname=update_nickname)
 
     # 닉네임 중복 확인
     if check_nickname is not None and check_nickname.id != user.id:
@@ -128,8 +128,8 @@ async def update_user(user, update):
         )
     # 없을 경우 닉네임 변경
     info = await UserModel.filter(id=user.id).update(
-        nickname=update,
+        nickname=update_nickname,
         updated_at=datetime.now(timezone.utc),
     )
 
-    return update, info
+    return update_nickname

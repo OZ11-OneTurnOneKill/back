@@ -17,15 +17,7 @@ router = APIRouter(prefix='/api/v1/users', tags=['Users'])
 security = HTTPBearer() # 토큰 헤더 받아옴
 google = Google()
 
-@router.get('/logintest')
-async def now(request: Request):
-    """
-    로그인 상태 여부를 확인하는 라우터
-    """
-    # token = request.cookies.get('token')
-    # check = await user_check(token)
 
-    return f'로그인 일단 된듯'
 @router.get('/myinfo')
 async def get_myinfo(user = Depends(get_current_user)):
     """
@@ -66,6 +58,6 @@ async def patch_nickname(patch_nickname: PatchNickname, user = Depends(get_curre
 
     return {
         'user_id' : user.id,
-        'new_nickname' : user.nickname,
+        'new_nickname' : updated_nickname,
         'msg' : '닉네임 변경이 완료 되었습니다.'
     }
