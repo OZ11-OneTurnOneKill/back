@@ -11,7 +11,7 @@ from app.dtos.community_dtos.attachments import PresignResp, PresignReq, AttachR
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import FreePostRequest, FreePostUpdateRequest
 from app.dtos.community_dtos.community_response import FreePostResponse
-from app.services.community_services.attachment_service import attach_free_image, delete_free_image, upload_free_image
+from app.services.community_services.attachment_service import attach_free_image, delete_free_image
 from app.services.community_services.community_get_service import service_list_posts_cursor
 from app.services.community_services.view_service import service_increment_view
 from app.services.users.users import get_current_user
