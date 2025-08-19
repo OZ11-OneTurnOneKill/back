@@ -98,25 +98,26 @@ def _ext_of(name: str) -> str:
     return name.rsplit(".", 1)[-1].lower() if "." in name else ""
 
 @router.post("/post/free/{post_id}/attachments/presigned", response_model=PresignResp)
-async def presign_free_image(post_id: int, body: PresignReq, user = Depends(get_current_user)):
-    post = await PostModel.get_or_none(id=post_id, category="free")
-    if not post: raise HTTPException(404, "Post not found")
-    if post.user_id != user.id: raise HTTPException(403, "Not the author")
-
-    ext = _ext_of(body.filename)
-    if ext not in IMAGE_EXTS or body.content_type not in IMAGE_MIMES:
-        raise HTTPException(400, "Only jpg/png allowed with correct MIME")
-
-    # 1파일 최대는 '게시글 총한도(10MB)' 이하로 presign (실제 총합 제한은 attach에서 최종확인)
-    return s3.presigned_post_strict("free", body.filename, body.content_type, MAX_TOTAL_BYTES_PER_POST)
-
-@router.post("/post/free/{post_id}/attachments/upload")
-async def upload_free_image_api(
+async def presign_free_image(
     post_id: int,
-    file: UploadFile = File(...),
+    body: PresignReq,
     user = Depends(get_current_user),
 ):
-    return await upload_free_image(post_id=post_id, user_id=user.id, file=file)
+    post = await PostModel.get_or_none(id=post_id, category=CategoryType.FREE)
+    if not post:
+        raise HTTPException(404, "Post not found")
+    if post.user_id != user.id:
+        raise HTTPException(403, "Not the author")
+
+    # MIME 체크 (프론트 실수 방지)
+    if body.content_type not in IMAGE_MIMES:
+        raise HTTPException(400, "Only jpg/png allowed")
+
+    # presign 발급 (S3에 직접 업로드용)
+    return s3.presigned_post_strict(
+        "free", body.filename, body.content_type, MAX_TOTAL_BYTES_PER_POST
+    )
+
 
 @router.post("/post/free/{post_id}/attachments/attach")
 async def attach_free_image_api(post_id: int, body: AttachReq, user = Depends(get_current_user)):

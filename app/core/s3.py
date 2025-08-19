@@ -72,12 +72,3 @@ def public_url(key: str) -> str:
 
 def delete_object(key: str):
     _s3.delete_object(Bucket=BUCKET, Key=key)
-
-
-def upload_fileobj(fileobj, key: str, content_type: str):
-    _s3.upload_fileobj(
-        Fileobj=fileobj,
-        Bucket=BUCKET,
-        Key=key,
-        ExtraArgs={"ContentType": content_type, "ServerSideEncryption": "AES256"},
-    )
