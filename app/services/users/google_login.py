@@ -182,7 +182,7 @@ async def revoke(request: Request, current_user: UserModel):
     if 'credentials' not in request.session: # 세션에 저장된 데이터가 없을 경우
         # print('세션 데이터 일치하지 않습니다. 확인 필요.')
         response = RedirectResponse(url=google.URL, status_code=303) # 303 : See Other, get으로 요청 전환
-        response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None)
+        response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None, domain=google.DOMAIN)
         return response
 
     credentials = Credentials.from_authorized_user_info(
@@ -205,7 +205,7 @@ async def revoke(request: Request, current_user: UserModel):
     await revoke_refresh(current_user)
 
     response = RedirectResponse(url=google.URL, status_code=303)  # 303 : See Other, get으로 요청 전환
-    response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None)
+    response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None, domain=google.DOMAIN)
 
     return response
 
