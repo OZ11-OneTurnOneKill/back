@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from typing import List, Optional
 import logging
 from app.exceptions.study_plan_exception import StudyPlanNotFoundError, StudyPlanAccessDeniedError
 from app.dtos.ai.summary import SummaryRequest, SummaryResponse
@@ -61,14 +61,15 @@ async def create_summary(
 async def get_user_summaries(
         limit: int = 10,
         offset: int = 0,
+        user_id: Optional[int] = None,
         summary_service: SummaryService = Depends(get_summary_service),
         current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """사용자별 요약 목록 조회"""
     try:
-        user_id = current_user.id
+        target_user_id = user_id if user_id is not None else current_user.id
         summaries = await summary_service.get_user_summaries(
-            user_id=user_id,
+            user_id=target_user_id,
             limit=limit,
             offset=offset
         )
@@ -80,7 +81,8 @@ async def get_user_summaries(
         )
 
     except Exception as e:
-        logger.error(f"Error fetching summaries for user {user_id}: {str(e)}")
+        target_user_id = user_id if user_id is not None else current_user.id
+        logger.error(f"Error fetching summaries for user {target_user_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=AsyncTaskResponse(
