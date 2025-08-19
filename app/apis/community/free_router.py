@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, Literal
 import os
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from tortoise.exceptions import DoesNotExist
 from app.core import s3
 from app.core.constants import PAGE_SIZE
@@ -11,7 +11,7 @@ from app.dtos.community_dtos.attachments import PresignResp, PresignReq, AttachR
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import FreePostRequest, FreePostUpdateRequest
 from app.dtos.community_dtos.community_response import FreePostResponse
-from app.services.community_services.attachment_service import attach_free_image, delete_free_image
+from app.services.community_services.attachment_service import attach_free_image, delete_free_image, upload_free_image
 from app.services.community_services.community_get_service import service_list_posts_cursor
 from app.services.community_services.view_service import service_increment_view
 from app.services.users.users import get_current_user
@@ -109,6 +109,14 @@ async def presign_free_image(post_id: int, body: PresignReq, user = Depends(get_
 
     # 1파일 최대는 '게시글 총한도(10MB)' 이하로 presign (실제 총합 제한은 attach에서 최종확인)
     return s3.presigned_post_strict("free", body.filename, body.content_type, MAX_TOTAL_BYTES_PER_POST)
+
+@router.post("/post/free/{post_id}/attachments/upload")
+async def upload_free_image_api(
+    post_id: int,
+    file: UploadFile = File(...),
+    user = Depends(get_current_user),
+):
+    return await upload_free_image(post_id=post_id, user_id=user.id, file=file)
 
 @router.post("/post/free/{post_id}/attachments/attach")
 async def attach_free_image_api(post_id: int, body: AttachReq, user = Depends(get_current_user)):
