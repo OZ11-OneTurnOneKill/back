@@ -1,4 +1,3 @@
-# app/apis/ai/ai_study_plan_router.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Dict, Any, Optional
 import logging
@@ -16,6 +15,7 @@ from app.dtos.ai.challenge_progress import (
 )
 from app.services.ai_services.study_plan_service import StudyPlanService
 from app.services.ai_services.gemini_service import GeminiService
+from app.services.users.users import get_current_user
 from app.configs.gemini_connect import gemini_api_key
 
 logger = logging.getLogger(__name__)
@@ -34,16 +34,16 @@ def get_study_plan_service() -> StudyPlanService:
     return StudyPlanService(gemini_service=gemini_service)
 
 
-@router.post("/{user_id}", status_code=status.HTTP_201_CREATED, response_model=AsyncTaskResponse)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=AsyncTaskResponse)
 async def create_study_plan(
-        user_id: int,
         request: StudyPlanRequest,
-        study_plan_service: StudyPlanService = Depends(get_study_plan_service)
+        study_plan_service: StudyPlanService = Depends(get_study_plan_service),
+        current_user = Depends(get_current_user),
 ) -> AsyncTaskResponse:
     """AI 공부 학습 계획 생성 (챌린지 모드 지원)
 
     Args:
-        user_id: 사용자 ID
+        current_user: 현재 사용자 (JWT에서 추출)
         request: 학습계획 생성 요청
         study_plan_service: 학습계획 서비스
 
@@ -51,9 +51,10 @@ async def create_study_plan(
         생성 결과 응답 (챌린지 정보 포함)
     """
     try:
+        user_id = current_user.id
         logger.info(f"Creating study plan for user {user_id} (challenge: {request.is_challenge})")
 
-        # ✅ 챌린지 지원 학습계획 생성
+        # 챌린지 지원 학습계획 생성
         study_plan = await study_plan_service.create_study_plan(
             user_id=user_id,
             request=request
@@ -75,7 +76,7 @@ async def create_study_plan(
         )
 
     except ValueError as e:
-        logger.warning(f"Validation error creating study plan for user {user_id}: {str(e)}")
+        logger.warning(f"Validation error creating study plan for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=AsyncTaskResponse(
@@ -85,7 +86,7 @@ async def create_study_plan(
             ).dict()
         )
     except Exception as e:
-        logger.error(f"Error creating study plan for user {user_id}: {str(e)}")
+        logger.error(f"Error creating study plan for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=AsyncTaskResponse(
@@ -157,7 +158,7 @@ async def get_study_plan_by_id(
         학습계획 상세 정보 (챌린지 정보 포함)
     """
     try:
-        # ✅ 챌린지 정보 포함 조회
+        # 챌린지 정보 포함 조회
         study_plan = await study_plan_service.get_study_plan_with_challenge(
             study_plan_id=plan_id,
             user_id=user_id

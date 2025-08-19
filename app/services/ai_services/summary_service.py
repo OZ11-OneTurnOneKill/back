@@ -8,8 +8,9 @@ from app.dtos.ai.summary import SummaryRequest, SummaryResponse
 
 logger = logging.getLogger(__name__)
 
+
 class SummaryService:
-    """자료 요약 서비스"""
+    """자료 요약 서비스 - 단순화 및 구조 정리"""
 
     def __init__(self, gemini_service: GeminiService):
         self.gemini_service = gemini_service
@@ -19,16 +20,23 @@ class SummaryService:
             user_id: int,
             request: SummaryRequest
     ) -> SummaryResponse:
-        """자료 요약 생성"""
+        """자료 요약 생성 - 단순화된 버전"""
         logger.info(f"Creating summary for user {user_id}")
 
         try:
-            # AI 요약 생성
+            # SummaryRequest의 validator에서 이미 텍스트가 정리되었으므로
+            # 추가 전처리 없이 바로 Gemini 서비스 호출
+            logger.info(f"처리할 텍스트 길이: {len(request.input_data)}")
+            logger.info(f"텍스트 미리보기: {request.input_data[:100]}...")
+
+            # GeminiService를 통해 요약 생성
             ai_response = await self.gemini_service.generate_summary(
-                content=request.input_data,
+                content=request.input_data,  # 이미 validator에서 정리된 텍스트
                 summary_type=request.summary_type,
                 title=request.title
             )
+
+            logger.info(f"AI 응답 받음: {type(ai_response)}")
 
             # DB에 저장
             summary = await DocumentSummary.create(
@@ -57,6 +65,9 @@ class SummaryService:
 
         except Exception as e:
             logger.error(f"Failed to create summary for user {user_id}: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             raise e
 
     async def get_user_summaries(
@@ -90,41 +101,27 @@ class SummaryService:
             summary_id: int,
             user_id: int
     ) -> None:
-        """자료 요약 삭제
-
-        Args:
-            summary_id: 요약 ID
-            user_id: 사용자 ID
-
-        Raises:
-            StudyPlanNotFoundError: 요약이 존재하지 않는 경우
-            StudyPlanAccessDeniedError: 요약에 대한 권한이 없는 경우
-        """
+        """자료 요약 삭제"""
         logger.info(f"Deleting summary {summary_id} for user {user_id}")
 
-        # 1단계: 삭제할 요약 조회
+        # 삭제할 요약 조회
         summary = await DocumentSummary.get_or_none(id=summary_id)
 
-        # 2단계: 존재 여부 확인
+        # 존재 여부 확인
         if not summary:
             logger.warning(f"Summary not found: {summary_id}")
-            raise StudyPlanNotFoundError(summary_id)  # 기존 예외 재사용 (나중에 전용 예외로 변경 가능)
+            raise StudyPlanNotFoundError(summary_id)
 
-        # 3단계: 권한 검증 - 자신의 요약만 삭제 가능
+        # 권한 검증
         if summary.user_id != user_id:
             logger.warning(
                 f"Access denied: User {user_id} tried to delete summary {summary_id} owned by user {summary.user_id}")
             raise StudyPlanAccessDeniedError(summary_id, user_id)
 
         try:
-            # 4단계: 실제 삭제 실행
             await summary.delete()
-
-            # 5단계: 성공 로깅
             logger.info(f"Summary {summary_id} deleted successfully by user {user_id}")
-
         except Exception as e:
-            # 6단계: 삭제 실패 시 에러 처리
             logger.error(f"Failed to delete summary {summary_id}: {str(e)}")
             raise e
 
@@ -133,19 +130,7 @@ class SummaryService:
             summary_id: int,
             user_id: int
     ) -> SummaryResponse:
-        """특정 요약 조회 (삭제 전 확인용으로도 사용)
-
-        Args:
-            summary_id: 요약 ID
-            user_id: 사용자 ID
-
-        Returns:
-            요약 응답 DTO
-
-        Raises:
-            StudyPlanNotFoundError: 요약이 존재하지 않는 경우
-            StudyPlanAccessDeniedError: 요약에 대한 권한이 없는 경우
-        """
+        """특정 요약 조회"""
         summary = await DocumentSummary.get_or_none(id=summary_id)
 
         if not summary:

@@ -1,11 +1,12 @@
 import json
 from google import generativeai as genai
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 from app.dtos.ai.study_plan import StudyPlanRequest
 
 import logging
 import json
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -14,17 +15,44 @@ class GeminiService:
     """Gemini API 연동 서비스"""
 
     def __init__(self, api_key: str):
-        """Gemini 서비스 초기화
-
-        Args:
-            api_key: Gemini API 키
-        """
+        """Gemini 서비스 초기화"""
         self.api_key = api_key
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash')
 
-    # gemini_service.py의 generate_study_plan 메서드에 추가
+        # 응답 길이 제한 해제 및 설정 최적화
+        generation_config = genai.types.GenerationConfig(
+            max_output_tokens=2048,  # 최대 토큰 수 증가
+            temperature=0.3,  # 일관성 있는 응답을 위해 낮춤
+            top_p=0.8,
+            top_k=40
+        )
 
+        self.model = genai.GenerativeModel(
+            'gemini-2.5-flash',
+            generation_config=generation_config
+        )
+
+        # 안전 설정도 조정 (응답 차단 방지)
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE"
+            }
+        ]
+
+        self.safety_settings = safety_settings
 
     async def generate_study_plan(self, request) -> Dict[str, Any]:
         """디버깅이 추가된 학습계획 생성"""
@@ -219,6 +247,107 @@ class GeminiService:
 
         return prompt
 
+    async def generate_summary(
+            self,
+            content: str,
+            summary_type: str = "general",
+            title: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """문서 요약 생성 - 줄바꿈 처리 문제 해결"""
+        try:
+            logger.info(f"🔍 요약 생성 시작 - 텍스트 길이: {len(content)}")
+            logger.info(f"📝 텍스트 미리보기: {content[:100]}...")
+
+            # 텍스트 길이 검증
+            if not content or len(content.strip()) < 10:
+                raise ValueError("요약할 텍스트가 너무 짧습니다")
+
+            # 텍스트가 너무 길면 줄임
+            if len(content) > 3000:
+                logger.warning(f"텍스트가 길어서 줄입니다: {len(content)} -> 3000자")
+                content = content[:3000] + "..."
+
+            # 프롬프트 생성
+            prompt = self._build_summary_prompt(content, summary_type, title)
+            logger.info(f"📝 프롬프트 생성 완료")
+
+            # Gemini API 호출
+            response = await self.model.generate_content_async(
+                prompt,
+                safety_settings=self.safety_settings
+            )
+
+            logger.info(f"📨 Gemini 응답 길이: {len(response.text)}")
+            logger.info(f"📨 Gemini 원본 응답: {response.text}")
+
+            # 응답 정리 및 JSON 파싱
+            clean_text = self._clean_gemini_response(response.text)
+            logger.info(f"🧹 정리된 응답: {clean_text}")
+
+            try:
+                parsed_response = json.loads(clean_text)
+                logger.info("✅ JSON 파싱 성공!")
+
+                # 응답 검증
+                self._validate_summary_response(parsed_response)
+                return parsed_response
+
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ JSON 파싱 실패: {e}")
+                logger.error(f"❌ 파싱 실패 텍스트: {clean_text}")
+                return self._create_fallback_summary(content, summary_type, title)
+
+        except Exception as e:
+            logger.error(f"❌ 요약 생성 실패: {e}")
+            return self._create_fallback_summary(content, summary_type, title)
+
+    def _build_summary_prompt(self, content: str, summary_type: str, title: Optional[str] = None) -> str:
+        """간단하고 안전한 요약 프롬프트"""
+
+        prompt = f"""다음 텍스트를 한국어로 요약해주세요.
+
+    텍스트: {content}
+
+    아래 JSON 형식으로만 답변하세요:
+
+    {{
+      "summary": "핵심 내용을 2-3문장으로 요약",
+      "key_points": ["요점1", "요점2", "요점3"],
+      "keywords": ["키워드1", "키워드2", "키워드3"]
+    }}
+
+    중요사항:
+    - 마크다운 사용 금지
+    - 코드블록 사용 금지  
+    - 순수 JSON만 반환
+    - 모든 내용은 한국어로 작성"""
+
+        return prompt
+
+    def _is_response_complete(self, response: Dict[str, Any]) -> bool:
+        """응답이 완전한지 검증"""
+        required_fields = ["summary", "key_points", "keywords"]
+
+        # 필수 필드 존재 확인
+        for field in required_fields:
+            if field not in response:
+                logger.warning(f"누락된 필드: {field}")
+                return False
+
+        # summary가 너무 짧지 않은지 확인
+        if len(response.get("summary", "")) < 20:
+            logger.warning("요약이 너무 짧습니다")
+            return False
+
+        # key_points가 리스트인지 확인
+        if not isinstance(response.get("key_points"), list):
+            logger.warning("key_points가 리스트가 아닙니다")
+            return False
+
+        return True
+
+    # gemini_service.py의 generate_study_plan 메서드에 추가
+
     def _validate_response_structure(self, response: Dict[str, Any]) -> None:
         """AI 응답 구조 검증
 
@@ -256,87 +385,123 @@ class GeminiService:
             if milestone_missing_fields:
                 raise ValueError(f"Milestone {i + 1} missing required fields: {milestone_missing_fields}")
 
-    async def generate_summary(
-            self,
-            content: str,
-            summary_type: str = "general",
-            title: str = ""
-    ) -> Dict[str, Any]:
-        """자료 요약 생성"""
-        try:
-            prompt = self._build_summary_prompt(content, summary_type, title)
-            logger.info(f"📝 요약 프롬프트 생성 완료: {len(prompt)} 문자")
+    def _clean_gemini_response(self, response_text: str) -> str:
+        """Gemini 응답 정리"""
 
-            response = await self.model.generate_content_async(prompt)
-            logger.info(f"📨 Gemini 요약 응답 받음: {len(response.text)} 문자")
+        logger.info(f"🔍 원본 응답 길이: {len(response_text)}")
 
-            # JSON 파싱
-            try:
-                clean_text = response.text.strip()
-                if clean_text.startswith("```json"):
-                    clean_text = clean_text[7:-3]
-                elif clean_text.startswith("```"):
-                    clean_text = clean_text[3:-3]
+        text = response_text.strip()
 
-                parsed_response = json.loads(clean_text)
-                logger.info("✅ 요약 JSON 파싱 성공!")
-                return parsed_response
+        # 마크다운 코드 블록 제거
+        if text.startswith("```json") and text.endswith("```"):
+            text = text[7:-3].strip()
+            logger.info("✅ ```json``` 블록 제거")
+        elif text.startswith("```") and text.endswith("```"):
+            text = text[3:-3].strip()
+            logger.info("✅ ``` 블록 제거")
 
-            except json.JSONDecodeError as e:
-                logger.error(f"❌ 요약 JSON 파싱 실패: {e}")
-                # 폴백 응답
-                return {
-                    "title": title or "자료 요약",
-                    "summary_type": summary_type,
-                    "summary": f"다음 내용을 요약했습니다:\n\n{content[:500]}...",
-                    "key_points": ["주요 내용을 파악하지 못했습니다."],
-                    "_fallback": True
-                }
+        # 중간에 있는 마크다운 블록도 처리
+        import re
+        text = re.sub(r'```json\s*', '', text)
+        text = re.sub(r'\s*```', '', text)
 
-        except Exception as e:
-            logger.error(f"❌ Gemini 요약 API 호출 실패: {e}")
-            raise ValueError(f"Summary generation error: {str(e)}")
+        # 줄바꿈을 공백으로 변경 (JSON 구조 보존)
+        text = re.sub(r'\n+', ' ', text)
 
-    def _build_summary_prompt(self, content: str, summary_type: str, title: str) -> str:
-        """요약 프롬프트 생성"""
+        # 연속된 공백 정리
+        text = re.sub(r'\s+', ' ', text)
 
-        type_instructions = {
-            "general": "핵심 내용을 간결하고 명확하게 요약해주세요.",
-            "keywords": "주요 키워드와 핵심 개념을 중심으로 정리해주세요.",
-            "qa": "주요 내용을 Q&A 형식으로 정리해주세요.",
-            "study": "학습하기 좋게 구조화하여 요약해주세요."
+        # 앞뒤 공백 제거
+        text = text.strip()
+
+        logger.info(f"🧹 정리 후 길이: {len(text)}")
+
+        return text
+
+    def _validate_summary_response(self, response: Dict[str, Any]) -> None:
+        """요약 응답 검증"""
+        required_fields = ["summary"]
+
+        # 필수 필드 확인
+        missing_fields = [field for field in required_fields if field not in response]
+        if missing_fields:
+            raise ValueError(f"요약 응답에서 필수 필드 누락: {missing_fields}")
+
+        # summary 필드가 비어있지 않은지 확인
+        if not response["summary"] or not response["summary"].strip():
+            raise ValueError("요약 내용이 비어있습니다")
+
+    def _create_fallback_summary(self, content: str, summary_type: str, title: Optional[str] = None) -> Dict[str, Any]:
+        """폴백 요약 생성 - 범용적 버전"""
+
+        # 간단한 문장 분리
+        sentences = content.replace('!', '.').replace('?', '.').split('.')
+        clean_sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
+
+        # 첫 2문장으로 요약 생성
+        summary_sentences = clean_sentences[:2] if len(clean_sentences) >= 2 else clean_sentences[:1]
+        fallback_summary = '. '.join(summary_sentences)
+
+        if not fallback_summary:
+            fallback_summary = content[:100].strip()
+            if len(content) > 100:
+                fallback_summary += "..."
+
+        # 간단한 키워드 추출
+        import re
+        words = re.findall(r'[가-힣a-zA-Z0-9]+', content)
+        word_freq = {}
+        for word in words:
+            if len(word) >= 2 and not word.isdigit():
+                word_freq[word] = word_freq.get(word, 0) + 1
+
+        # 빈도순 상위 키워드
+        if word_freq:
+            sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
+            keywords = [word for word, freq in sorted_words[:5]]
+        else:
+            keywords = ["문서", "내용", "정보"]
+
+        return {
+            "summary": fallback_summary,
+            "key_points": [
+                "주요 내용 요약",
+                "핵심 정보 설명",
+                "중요 사항 정리"
+            ],
+            "keywords": keywords[:3],
+            "_fallback": True,
+            "_reason": "Gemini 응답 처리 실패"
         }
 
-        instruction = type_instructions.get(summary_type, type_instructions["general"])
+    def _validate_and_fix_response(self, response: Dict[str, Any], original_content: str) -> Dict[str, Any]:
+        """응답 구조 검증 및 수정"""
 
-        prompt = f"""
-    다음 자료를 요약해주세요.
+        # 필수 필드 확인 및 보완
+        if "summary" not in response or not response["summary"]:
+            # 원본 텍스트에서 첫 문장들로 요약 생성
+            sentences = original_content.split('.')[:2]
+            response["summary"] = '. '.join(s.strip() for s in sentences if s.strip()) + '.'
 
-    제목: {title}
-    요약 유형: {summary_type}
-    지침: {instruction}
+        if "key_points" not in response or not isinstance(response["key_points"], list):
+            response["key_points"] = ["주요 내용 추출 실패"]
 
-    원본 내용:
-    {content}
+        if "keywords" not in response or not isinstance(response["keywords"], list):
+            # 간단한 키워드 추출
+            words = original_content.split()
+            common_words = ['AWS', '기술', '서비스', '데이터', '머신러닝']
+            response["keywords"] = [w for w in common_words if w in original_content][:5]
 
-    다음 JSON 형식으로 요약 결과를 작성해주세요:
+        if "word_count" not in response:
+            response["word_count"] = len(original_content.split())
 
-    {{
-        "title": "요약 제목",
-        "summary_type": "{summary_type}",
-        "summary": "핵심 내용 요약 (2-3 문단)",
-        "key_points": ["주요 포인트 1", "주요 포인트 2", "주요 포인트 3"],
-        "word_count": 원본_글자수,
-        "summary_ratio": "요약_비율 (예: 20%)"
-    }}
+        if "summary_ratio" not in response:
+            summary_len = len(response["summary"].split())
+            original_len = len(original_content.split())
+            ratio = round((summary_len / original_len) * 100) if original_len > 0 else 0
+            response["summary_ratio"] = f"{ratio}%"
 
-    주의사항:
-    1. 원본 내용의 핵심만 간추려주세요
-    2. 객관적이고 정확한 정보만 포함해주세요
-    3. JSON 형식을 정확히 지켜주세요
-    """
-
-        return prompt
+        return response
 
 
 class GeminiServiceConfig:

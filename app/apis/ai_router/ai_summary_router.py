@@ -6,12 +6,13 @@ from app.dtos.ai.summary import SummaryRequest, SummaryResponse
 from app.dtos.ai.study_plan import AsyncTaskResponse
 from app.services.ai_services.summary_service import SummaryService
 from app.services.ai_services.gemini_service import GeminiService
+from app.services.users.users import get_current_user
 from app.configs.gemini_connect import gemini_api_key
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/api/summary",
+    prefix="/api/v1/ai/summary",
     tags=["AI Summary"],
     responses={404: {"description": "Not found"}}
 )
@@ -22,14 +23,15 @@ def get_summary_service() -> SummaryService:
     gemini_service = GeminiService(api_key=api_key)
     return SummaryService(gemini_service=gemini_service)
 
-@router.post("/{user_id}", status_code=status.HTTP_201_CREATED, response_model=AsyncTaskResponse)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=AsyncTaskResponse)
 async def create_summary(
-        user_id: int,
         request: SummaryRequest,
-        summary_service: SummaryService = Depends(get_summary_service)
+        summary_service: SummaryService = Depends(get_summary_service),
+        current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """AI 자료 요약 생성"""
     try:
+        user_id = current_user.id
         logger.info(f"Creating summary for user {user_id}")
 
         summary = await summary_service.create_summary(
@@ -55,15 +57,16 @@ async def create_summary(
             ).dict()
         )
 
-@router.get("/{user_id}", response_model=AsyncTaskResponse)
+@router.get("/", response_model=AsyncTaskResponse)
 async def get_user_summaries(
-        user_id: int,
         limit: int = 10,
         offset: int = 0,
-        summary_service: SummaryService = Depends(get_summary_service)
+        summary_service: SummaryService = Depends(get_summary_service),
+        current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """사용자별 요약 목록 조회"""
     try:
+        user_id = current_user.id
         summaries = await summary_service.get_user_summaries(
             user_id=user_id,
             limit=limit,
@@ -86,23 +89,24 @@ async def get_user_summaries(
             ).dict()
         )
 
-@router.delete("/{user_id}/{summary_id}", response_model=AsyncTaskResponse)
+@router.delete("/{summary_id}", response_model=AsyncTaskResponse)
 async def delete_summary(
-        user_id: int,
         summary_id: int,
-        summary_service: SummaryService = Depends(get_summary_service)
+        summary_service: SummaryService = Depends(get_summary_service),
+        current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """자료 요약 삭제
 
     Args:
-        user_id: 사용자 ID
         summary_id: 요약 ID
         summary_service: 요약 서비스
+        current_user: 현재 사용자 (JWT에서 추출)
 
     Returns:
         삭제 결과
     """
     try:
+        user_id = current_user.id
         logger.info(f"Attempting to delete summary {summary_id} for user {user_id}")
 
         await summary_service.delete_summary(
