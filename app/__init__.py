@@ -41,6 +41,29 @@ tags_metadata = [
 
 app = FastAPI(default_response_class=ORJSONResponse, openapi_tags=tags_metadata)
 
+google = Google()
+
+origins = [
+    "http://localhost:8000",
+    "https://www.evida.site",
+    "https://backend.evida.site",
+    "https://eunbin.evida.site",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins, # API를 호출할 수 있는 도메인을 지정.
+    allow_credentials=True, # 자격증명(쿠키, http 인증) 허용 여부
+    allow_methods=["*"], # 허용할 http 메소드
+    allow_headers=["*"], # 허용할 http 헤더
+)
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=google.SECRET_KEY,
+
+)
+
 # community
 app.include_router(post_router)
 app.include_router(study_router)
@@ -60,26 +83,6 @@ app.include_router(users_router)
 # load_dotenv()
 # secret_key = os.getenv('SECRET_KEY')
 
-google = Google()
-
-origins = [
-    "http://localhost:8000",
-    "https://www.evida.site",
-    "https://backend.evida.site",
-    "https://eunbin.evida.site",
-]
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=google.SECRET_KEY,
-
-)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins, # API를 호출할 수 있는 도메인을 지정.
-    allow_credentials=True, # 자격증명(쿠키, http 인증) 허용 여부
-    allow_methods=["*"], # 허용할 http 메소드
-    allow_headers=["*"], # 허용할 http 헤더
-)
 """
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
