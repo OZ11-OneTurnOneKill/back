@@ -4,15 +4,17 @@ kakao 소셜 로그인 구현 api service logic 관리 파일입니다.
 소셜 로그인 관련 라우터는 `apis/` 폴더에 작성했습니다.
 
 """
-from fastapi import HTTPException
 
 import requests
-from app.configs.base_config import Kakao
-from fastapi import Request
-from fastapi.responses import RedirectResponse
+from app.configs.base_config import Kakao, Google
+from app.models.user import UserModel
+from app.services.users import login
+from fastapi import Request, HTTPException
+from fastapi.responses import RedirectResponse, JSONResponse
 from typing import Optional
 
 kakao = Kakao()
+kakao_ = Google()
 
 
 async def create_authorization_url(request:Request, scope: Optional[str]) -> RedirectResponse:
@@ -39,7 +41,7 @@ async def redirect_page(request: Request):
     access_token 을 받아 세션에 저장.
     :return:
     """
-
+    # 인가코드
     code = request.query_params.get('code')
     error = request.query_params.get('error')
     state = request.query_params.get('state')
@@ -68,7 +70,6 @@ async def redirect_page(request: Request):
     }
     print(data)
 
-
     # access token 요청
     try:
         response = requests.post( # 카카오에 요청 시도
@@ -87,9 +88,9 @@ async def redirect_page(request: Request):
 
             return check_session
 
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Error: {str(e)}')
+
 
 async def get_userinfo(request: Request):
     """
@@ -99,11 +100,42 @@ async def get_userinfo(request: Request):
 
     token_info = request.session.get('access_token')
 
-    headers = {  # Header에
-        # 'Authorization': 'Bearer ' + request.session.get('access_token', '')
+    headers = {  # 세션에 저장된 access token 전달
         'Authorization': f'Bearer {token_info["access_token"]}'
     }
 
     response = requests.get(kakao.KAPI_HOST + '/v2/user/me', headers=headers)
 
     return response.json()
+
+
+async def revoke(request: Request, current_user: UserModel):
+    """
+    유저의 로그아웃 요청시, 세션과 쿠키에 저장된 데이터 무효화와 DB에 상태를 반영한다.
+    - 세션 삭제 및 쿠키에 담겨진 데이터를 삭제.
+    - 구글 로그아웃 API 호출
+    - 설정한 url로 리디렉션 진행 (303)
+        -> 따로 프론트에서 연결 진행함으로 리디렉션 제거
+    :param request:
+    :return:
+    """
+    # 세션에서 kakao access token을 가져옴.
+    token_info = request.session.get('access_token')
+
+    headers = { # 헤더로 토큰 전달
+        'Authorization': f'Bearer {token_info["access_token"]}'
+    }
+
+    # 카카오 로그아웃 API 요청 (POST)
+    req = requests.post(f'{kakao.KAPI_HOST}/v1/user/logout', headers=headers)
+
+    request.session.clear() # session 삭제
+
+    response = JSONResponse(
+        {'msg' : '로그아웃 완료'}
+    )
+    response.delete_cookie(key='access_token', path='/', httponly=True, secure=kakao_.IS_SECURE, samesite=None, domain=kakao_.DOMAIN)
+
+    await login.revoke_refresh(current_user)
+
+    return response # 응답 결과 반환
