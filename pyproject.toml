@@ -24,6 +24,7 @@ google-generativeai = "^0.3.2"
 boto3 = "^1.40.11"
 awscli = "^1.42.11"
 pyjwt = "^2.10.1"
+python-multipart = "^0.0.20"
 
 
 [tool.poetry.group.dev.dependencies]

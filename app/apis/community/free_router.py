@@ -7,11 +7,11 @@ from app.core import s3
 from app.core.constants import PAGE_SIZE
 from app.core.attach_limits import IMAGE_MIMES, IMAGE_EXTS, MAX_TOTAL_BYTES_PER_POST
 from app.dtos.community_dtos.Community_list_response import CursorListResponse
-from app.dtos.community_dtos.attachments import PresignResp, PresignReq, AttachReq
+from app.dtos.community_dtos.attachments import PresignResp, PresignReq, AttachReq, FreeImageItem
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import FreePostRequest, FreePostUpdateRequest
 from app.dtos.community_dtos.community_response import FreePostResponse
-from app.services.community_services.attachment_service import attach_free_image, delete_free_image
+from app.services.community_services.attachment_service import delete_free_image, upload_free_image
 from app.services.community_services.community_get_service import service_list_posts_cursor
 from app.services.community_services.view_service import service_increment_view
 from app.services.users.users import get_current_user
@@ -97,32 +97,20 @@ async def patch_free_post(
 def _ext_of(name: str) -> str:
     return name.rsplit(".", 1)[-1].lower() if "." in name else ""
 
-@router.post("/post/free/{post_id}/attachments/presigned", response_model=PresignResp)
-async def presign_free_image(
+
+@router.post("/post/free/{post_id}/attachments/upload", response_model=FreeImageItem)
+async def upload_free_image_api(
     post_id: int,
-    body: PresignReq,
+    file: UploadFile = File(..., description="jpg/png", media_type="multipart/form-data"),
     user = Depends(get_current_user),
 ):
-    post = await PostModel.get_or_none(id=post_id, category=CategoryType.FREE)
-    if not post:
-        raise HTTPException(404, "Post not found")
-    if post.user_id != user.id:
-        raise HTTPException(403, "Not the author")
+    return await upload_free_image(post_id=post_id, user_id=user.id, file=file)
 
-    # MIME 체크 (프론트 실수 방지)
-    if body.content_type not in IMAGE_MIMES:
-        raise HTTPException(400, "Only jpg/png allowed")
-
-    # presign 발급 (S3에 직접 업로드용)
-    return s3.presigned_post_strict(
-        "free", body.filename, body.content_type, MAX_TOTAL_BYTES_PER_POST
-    )
-
-
-@router.post("/post/free/{post_id}/attachments/attach")
-async def attach_free_image_api(post_id: int, body: AttachReq, user = Depends(get_current_user)):
-    return await attach_free_image(post_id=post_id, user_id=user.id, key=body.key)
 
 @router.delete("/post/free/{post_id}/attachments/{image_id}")
-async def delete_free_image_api(post_id: int, image_id: int, user = Depends(get_current_user)):
+async def delete_free_image_api(
+    post_id: int,
+    image_id: int,
+    user = Depends(get_current_user),
+):
     return await delete_free_image(post_id=post_id, user_id=user.id, image_id=image_id)

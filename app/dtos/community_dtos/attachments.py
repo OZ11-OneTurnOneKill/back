@@ -1,5 +1,6 @@
 from typing import Dict
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, AnyUrl
+
 
 class PresignReq(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -16,3 +17,17 @@ class PresignResp(BaseModel):
 class AttachReq(BaseModel):
     model_config = ConfigDict(extra='forbid')
     key: str
+
+
+class FreeImageItem(BaseModel):
+    id: int
+    image_url: AnyUrl | str
+    mime_type: str
+    size_bytes: int
+
+class ShareFileItem(BaseModel):
+    id: int
+    file_url: AnyUrl | str
+    original_filename: str
+    mime_type: str
+    size_bytes: int
