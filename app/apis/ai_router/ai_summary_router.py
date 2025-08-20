@@ -25,13 +25,14 @@ def get_summary_service() -> SummaryService:
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=AsyncTaskResponse)
 async def create_summary(
+        user_id: int,
         request: SummaryRequest,
         summary_service: SummaryService = Depends(get_summary_service),
-        current_user = Depends(get_current_user)
+        # current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """AI 자료 요약 생성"""
     try:
-        user_id = current_user.id
+        # user_id = current_user.id
         logger.info(f"Creating summary for user {user_id}")
 
         summary = await summary_service.create_summary(
@@ -63,13 +64,14 @@ async def get_user_summaries(
         offset: int = 0,
         user_id: Optional[int] = None,
         summary_service: SummaryService = Depends(get_summary_service),
-        current_user = Depends(get_current_user)
+        # current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """사용자별 요약 목록 조회"""
     try:
-        target_user_id = user_id if user_id is not None else current_user.id
+        # target_user_id = user_id if user_id is not None else current_user.id
         summaries = await summary_service.get_user_summaries(
-            user_id=target_user_id,
+            # user_id=target_user_id,
+            user_id=user_id,
             limit=limit,
             offset=offset
         )
@@ -81,8 +83,9 @@ async def get_user_summaries(
         )
 
     except Exception as e:
-        target_user_id = user_id if user_id is not None else current_user.id
-        logger.error(f"Error fetching summaries for user {target_user_id}: {str(e)}")
+        # target_user_id = user_id if user_id is not None else current_user.id
+        # logger.error(f"Error fetching summaries for user {target_user_id}: {str(e)}")
+        logger.error(f"Error fetching summaries for user {user_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=AsyncTaskResponse(
@@ -100,6 +103,7 @@ async def delete_summary(
     """자료 요약 삭제
 
     Args:
+        user_id: 사용자 ID
         summary_id: 요약 ID
         summary_service: 요약 서비스
         current_user: 현재 사용자 (JWT에서 추출)
