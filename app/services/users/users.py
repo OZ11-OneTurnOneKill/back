@@ -79,9 +79,10 @@ async def get_or_create_google(user_info):
     """
     회원가입 및 로그인한 유저의 데이터가 DB에 저장 되어있는지 확인을 통해
     기존의 저장된 데이터를 가져오거나, 새롭게 데이터를 저장한다.
+    ** 이 함수는 google_login services에 연결 되어있다. **
     """
     # user_info는 구글에서 받은 유저 데이터 (dict)
-    # 이메일이나 소셜계정 기준으로 유저 조회
+    # 이메일 기준으로 유저 조회
     user = await UserModel.filter(email=user_info['email']).first()
 
     if not user: # 기존 데이터에 없을 경우, 새로운 유저 생성.
@@ -113,12 +114,13 @@ async def get_or_create_kakao(user_info):
     """
     회원가입 및 로그인한 유저의 데이터가 DB에 저장 되어있는지 확인을 통해
     기존의 저장된 데이터를 가져오거나, 새롭게 데이터를 저장한다.
+    ** 이 함수는 kakao_login router에 연결 되어있다. **
     """
-    # user_info는 구글에서 받은 유저 데이터 (dict)
-    # 이메일이나 소셜계정 기준으로 유저 조회
-    user = await UserModel.filter(email=user_info['email']).first()
+    # 구글과 다르게 카카오에서는 유저 이메일 제공을 하지 않음. id로 검사 진행.
+    user = await UserModel.filter(provider_id=user_info['id']).first()
 
     if not user: # 기존 데이터에 없을 경우, 새로운 유저 생성.
+        # 랜덤 닉네임 제공
         base_nickname = '반가워요' # 기본 베이스 닉네임
         while True:
             random_suffix = random.randint(1000, 9999) # 랜덤으로 4자리 숫자를 출력, 기본 베이스 닉네임 뒤에 랜덤으로 생성된 숫자를 추가.
@@ -127,12 +129,22 @@ async def get_or_create_kakao(user_info):
                 nickname = create_nickname # 없을 경우 닉네임으로 생성
                 break
 
+        # fake 이메일 데이터. DB설정에 not null, unique 되어있기 때문에 따로 만들어서 넣어줌.
+        base_email = 'fake_kakao' # 이메일 베이스. 랜덤 닉네임 생성이랑 같은 방식으로 진행.
+        while True:
+            random_suffix = random.randint(1000, 9999) # 랜덤 4자리 숫자 생성
+            create_email = f"{base_email}{random_suffix}@email.com"
+            if not await UserModel.filter(email=create_email): # DB 체크
+                email = create_email
+                break
+
+        # DB에 유저 정보 저장
         user = await UserModel.create(
-            provider='google',
+            provider='kakao',
             provider_id=user_info.get('id'),
-            email=user_info.get('email'),
+            email=email,
             nickname=nickname,
-            profile_image_url=user_info.get('picture'),
+            profile_image_url=user_info.get('properties').get('profile_image'),
             is_active=True,
             is_superuser=False,
         )
