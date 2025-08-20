@@ -35,6 +35,15 @@ class Google(BaseSettings):
     IS_SECURE : bool = True
     DOMAIN : str = 'evida.site'
 
+class Kakao(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
+    KAKAO_CLIENT_ID :str = 'client'
+    KAKAO_REDIRECT_URI : str = 'uri'
+    KAKAO_DOMAIN : str = 'domain'
+    KAUTH_HOST : str = 'kauth_host'
+    KAPI_HOST : str = 'kapi_host'
+    KAKAO_SECRET_KEY : str
+    KAKAO_KEY : str
 
 class Tokens(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")

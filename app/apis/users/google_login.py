@@ -11,7 +11,7 @@ from app.configs.base_config import Google
 from app.models.user import RefreshTokenModel, UserModel
 from app.services.users.google_login import create_authorization_url, access_token, info, revoke
 from app.services.users import login
-from app.services.users.users import get_current_user, get_or_create_user
+from app.services.users.users import get_current_user
 from google.oauth2.credentials import Credentials
 
 

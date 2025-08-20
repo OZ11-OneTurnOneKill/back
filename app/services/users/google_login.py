@@ -15,7 +15,7 @@ from google_auth_oauthlib.flow import Flow # 사용자 승인
 from fastapi import Request, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
 
-from app.services.users.users import get_or_create_user
+from app.services.users.users import get_or_create_google
 
 google = Google() # base config 호출
 
@@ -130,7 +130,7 @@ async def access_token(request: Request):
         request.session['provider_id'] = provider_id
         print(f'저장된 provider_id : {provider_id}')
 
-    created_user = await get_or_create_user(user_info) # user data를 db에 저장
+    created_user = await get_or_create_google(user_info) # user data를 db에 저장
     print(f'회원 데이터 : {created_user}')
 
     return credentials
