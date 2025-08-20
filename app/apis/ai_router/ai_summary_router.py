@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 import logging
-from app.exceptions.study_plan_exception import StudyPlanNotFoundError, StudyPlanAccessDeniedError
+from app.exceptions.summary_exception import SummaryNotFoundError, SummaryAccessDeniedError
 from app.dtos.ai.summary import SummaryRequest, SummaryResponse
 from app.dtos.ai.study_plan import AsyncTaskResponse
 from app.services.ai_services.summary_service import SummaryService
@@ -94,6 +94,65 @@ async def get_user_summaries(
             ).dict()
         )
 
+@router.get("/{summary_id}", response_model=AsyncTaskResponse)
+async def get_summary_by_id(
+        summary_id: int,
+        user_id: Optional[int] = None,
+        summary_service: SummaryService = Depends(get_summary_service),
+        # current_user = Depends(get_current_user)
+) -> AsyncTaskResponse:
+    """특정 요약문서 조회
+    
+    Args:
+        summary_id: 요약 ID
+        user_id: 사용자 ID (선택사항)
+        summary_service: 요약 서비스
+        
+    Returns:
+        요약문서 상세 정보
+    """
+    try:
+        summary = await summary_service.get_summary_by_id(
+            summary_id=summary_id,
+            user_id=user_id
+        )
+        
+        return AsyncTaskResponse(
+            success=True,
+            message="요약문서를 성공적으로 조회했습니다.",
+            data={"summary": summary.dict()}
+        )
+        
+    except SummaryNotFoundError as e:
+        logger.warning(f"Summary not found: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=AsyncTaskResponse(
+                success=False,
+                message=str(e),
+                data=e.details
+            ).dict()
+        )
+    except SummaryAccessDeniedError as e:
+        logger.warning(f"Access denied: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=AsyncTaskResponse(
+                success=False,
+                message=str(e),
+                data=e.details
+            ).dict()
+        )
+    except Exception as e:
+        logger.error(f"Error fetching summary {summary_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=AsyncTaskResponse(
+                success=False,
+                message=f"요약문서 조회 중 오류가 발생했습니다: {str(e)}"
+            ).dict()
+        )
+
 @router.delete("/{summary_id}", response_model=AsyncTaskResponse)
 async def delete_summary(
         summary_id: int,
@@ -126,7 +185,7 @@ async def delete_summary(
             data={"deleted_summary_id": summary_id}
         )
 
-    except StudyPlanNotFoundError as e:
+    except SummaryNotFoundError as e:
         logger.warning(f"Summary not found: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -136,7 +195,7 @@ async def delete_summary(
                 data=e.details
             ).dict()
         )
-    except StudyPlanAccessDeniedError as e:
+    except SummaryAccessDeniedError as e:
         logger.warning(f"Access denied: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
