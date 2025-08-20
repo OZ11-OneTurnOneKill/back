@@ -34,7 +34,7 @@ def get_study_plan_service() -> StudyPlanService:
     return StudyPlanService(gemini_service=gemini_service)
 
 
-@router.post("/{user_id}", status_code=status.HTTP_201_CREATED, response_model=AsyncTaskResponse)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=AsyncTaskResponse)
 async def create_study_plan(
         user_id: int,
         request: StudyPlanRequest,
@@ -101,7 +101,7 @@ async def create_study_plan(
         )
 
 
-@router.get("/{user_id}", response_model=AsyncTaskResponse)
+@router.get("/", response_model=AsyncTaskResponse)
 async def get_user_study_plans(
         user_id: int,
         limit: int = 10,
@@ -151,7 +151,7 @@ async def get_user_study_plans(
         )
 
 
-@router.get("/{user_id}/{plan_id}", response_model=AsyncTaskResponse)
+@router.get("/{plan_id}", response_model=AsyncTaskResponse)
 async def get_study_plan_by_id(
         user_id: int,
         plan_id: int,
@@ -220,7 +220,7 @@ async def get_study_plan_by_id(
         )
 
 
-@router.patch("/{user_id}/{plan_id}/challenge", response_model=AsyncTaskResponse)
+@router.patch("/{plan_id}/challenge", response_model=AsyncTaskResponse)
 async def update_challenge_progress(
         user_id: int,
         plan_id: int,
@@ -284,7 +284,7 @@ async def update_challenge_progress(
         )
 
 
-@router.post("/{user_id}/{plan_id}/challenge/complete", response_model=AsyncTaskResponse)
+@router.post("/{plan_id}/challenge/complete", response_model=AsyncTaskResponse)
 async def complete_challenge(
         user_id: int,
         plan_id: int,
@@ -339,7 +339,7 @@ async def complete_challenge(
         )
 
 
-@router.post("/{user_id}/{plan_id}", response_model=AsyncTaskResponse)
+@router.post("/{plan_id}", response_model=AsyncTaskResponse)
 async def update_study_plan(
         user_id: int,
         plan_id: int,
@@ -410,7 +410,7 @@ async def update_study_plan(
         )
 
 
-@router.delete("/{user_id}/{plan_id}", response_model=AsyncTaskResponse)
+@router.delete("/{plan_id}", response_model=AsyncTaskResponse)
 async def delete_study_plan(
         user_id: int,
         plan_id: int,
