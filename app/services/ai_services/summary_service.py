@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Dict, Any, Optional, List
-from app.exceptions.study_plan_exception import StudyPlanNotFoundError, StudyPlanAccessDeniedError
+from app.exceptions.summary_exception import SummaryNotFoundError, SummaryAccessDeniedError
 from app.services.ai_services.gemini_service import GeminiService
 from app.models.ai import DocumentSummary
 from app.dtos.ai.summary import SummaryRequest, SummaryResponse
@@ -110,13 +110,13 @@ class SummaryService:
         # 존재 여부 확인
         if not summary:
             logger.warning(f"Summary not found: {summary_id}")
-            raise StudyPlanNotFoundError(summary_id)
+            raise SummaryNotFoundError(summary_id)
 
         # 권한 검증
         if summary.user_id != user_id:
             logger.warning(
                 f"Access denied: User {user_id} tried to delete summary {summary_id} owned by user {summary.user_id}")
-            raise StudyPlanAccessDeniedError(summary_id, user_id)
+            raise SummaryAccessDeniedError(summary_id, user_id)
 
         try:
             await summary.delete()
@@ -134,10 +134,10 @@ class SummaryService:
         summary = await DocumentSummary.get_or_none(id=summary_id)
 
         if not summary:
-            raise StudyPlanNotFoundError(summary_id)
+            raise SummaryNotFoundError(summary_id)
 
         if summary.user_id != user_id:
-            raise StudyPlanAccessDeniedError(summary_id, user_id)
+            raise SummaryAccessDeniedError(summary_id, user_id)
 
         return SummaryResponse(
             id=summary.id,
