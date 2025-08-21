@@ -111,7 +111,7 @@ async def get_userinfo(request: Request):
     return response.json()
 
 
-async def revoke(request: Request, current_user: UserModel):
+async def revoke(request: Request, current_user: UserModel) -> RedirectResponse:
     """
     유저의 로그아웃 요청시, 세션과 쿠키에 저장된 데이터 무효화와 DB에 상태를 반영한다.
     - 세션 삭제 및 쿠키에 담겨진 데이터를 삭제.
@@ -130,14 +130,14 @@ async def revoke(request: Request, current_user: UserModel):
 
     # 카카오 로그아웃 API 요청 (POST)
     logout = requests.post(f'{kakao.KAPI_HOST}/v1/user/logout', headers=headers)
-    unlink = requests.post(f'{kakao.KAPI_HOST}/v1/user/unlink', headers=headers)
+    # unlink = requests.post(f'{kakao.KAPI_HOST}/v1/user/unlink', headers=headers)
 
     request.session.clear() # session 삭제
 
-    response = JSONResponse(
-        {'msg' : '로그아웃 완료'}
-    )
-    # response = RedirectResponse(kakao_.URL)
+    # response = JSONResponse(
+    #     {'msg' : '로그아웃 완료'}
+    # )
+    response = RedirectResponse(kakao_.URL)
 
     response.delete_cookie(key='access_token', path='/', httponly=True, secure=kakao_.IS_SECURE, samesite=None, domain=kakao_.DOMAIN)
 
