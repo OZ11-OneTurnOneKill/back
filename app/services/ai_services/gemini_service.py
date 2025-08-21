@@ -184,16 +184,34 @@ class GeminiService:
             logger.info(f"📄 응답 텍스트 추출 성공: {len(response_text)} 문자")
             logger.info(f"📄 실제 응답 내용: {response_text[:500]}...")
 
-            # JSON 파싱 시도
+            # JSON 파싱 시도 (개선된 로직)
             try:
-                # 간단한 정리 후 파싱
                 clean_text = response_text.strip()
-                if clean_text.startswith("```json"):
-                    clean_text = clean_text[7:-3]
-                elif clean_text.startswith("```"):
-                    clean_text = clean_text[3:-3]
+                logger.info(f"🧹 원본 텍스트 길이: {len(clean_text)}")
+                logger.info(f"🧹 원본 텍스트 시작: {clean_text[:100]}...")
+                logger.info(f"🧹 원본 텍스트 끝: {clean_text[-100:]}")
 
-                logger.info(f"🧹 정리된 텍스트: {clean_text[:200]}...")
+                # 더 안전한 코드 블록 제거
+                if clean_text.startswith("```json"):
+                    # ```json으로 시작하는 경우
+                    start_index = clean_text.find('\n') + 1  # 첫 번째 줄바꿈 다음부터
+                    end_index = clean_text.rfind("```")  # 마지막 ``` 위치
+                    if end_index > start_index:
+                        clean_text = clean_text[start_index:end_index]
+                    else:
+                        clean_text = clean_text[7:]  # ```json 제거만
+                elif clean_text.startswith("```"):
+                    # ```로 시작하는 경우
+                    start_index = clean_text.find('\n') + 1
+                    end_index = clean_text.rfind("```")
+                    if end_index > start_index:
+                        clean_text = clean_text[start_index:end_index]
+                    else:
+                        clean_text = clean_text[3:]  # ``` 제거만
+
+                clean_text = clean_text.strip()
+                logger.info(f"🧹 정리된 텍스트 길이: {len(clean_text)}")
+                logger.info(f"🧹 정리된 텍스트 시작: {clean_text[:200]}...")
 
                 parsed_response = json.loads(clean_text)
                 logger.info("✅ JSON 파싱 성공!")
