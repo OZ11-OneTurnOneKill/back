@@ -27,7 +27,7 @@ from app.apis.community._state import (
 
 router = APIRouter(prefix="/api/v1/community", tags=["Community · Study"])
 
-SearchIn = Literal["title", "content", "title_content"]
+SearchIn = Literal["title", "content", "title_content", "author"]
 
 @router.post("/post/study", response_model=StudyPostResponse)
 async def create_study_post(body: StudyPostRequest):
