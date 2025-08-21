@@ -1,17 +1,17 @@
-from __future__ import annotations
-
-from email.mime import image
 from typing import Optional
-from app.models.community import PostModel, FreeImageModel, ShareFileModel  # 네 실제 Post 모델 경로로 변경
+from tortoise.exceptions import DoesNotExist
+from app.models.community import PostModel
 from app.dtos.community_dtos.community_response import (
     StudyPostResponse, StudyRecruitmentResponse,
-    FreePostResponse,
-    SharePostResponse,
+    FreePostResponse, FreeImageOut,
+    SharePostResponse, ShareFileOut,
 )
 
-
 def to_study_response(p: PostModel) -> StudyPostResponse:
-    """PostModel(+ study_recruitment) -> StudyPostResponse"""
+    """
+    PostModel(+ study_recruitment, + user) -> StudyPostResponse
+    라우터/서비스에서 select_related("study_recruitment", "user")를 붙여주는 걸 권장.
+    """
     sr = getattr(p, "study_recruitment", None)
 
     return StudyPostResponse(
@@ -20,6 +20,7 @@ def to_study_response(p: PostModel) -> StudyPostResponse:
         content=p.content,
         category=p.category,
         author_id=p.user_id,
+        author_nickname=getattr(getattr(p, "user", None), "nickname", None),
         views=p.view_count,
         study_recruitment=(
             StudyRecruitmentResponse(
@@ -34,46 +35,49 @@ def to_study_response(p: PostModel) -> StudyPostResponse:
         updated_at=p.updated_at,
     )
 
-
 async def to_free_response(post: PostModel) -> FreePostResponse:
-    image_items = [
-        FreeImageModel(
-            id=img.id,
-            image_url=img.image_url,
-            mime_type=img.mime_type,
-            size_bytes=img.size_bytes,
-        )
-        async for img in post.free_images.all()
-    ]
+    """
+    PostModel(+ user, + free_images) -> FreePostResponse
+    - 라우터에서: .prefetch_related("free_images").select_related("user") 권장
+    - 여기서 values(...)로 DTO 리스트 구성
+    """
+    # 작성자 닉네임 접근 위해 user 프리로드가 가장 좋음
+    # (안 되어 있어도 getattr로 안전하게 처리)
+    rows = await post.free_images.all().order_by("-id").values(
+        "id", "image_url", "mime_type", "size_bytes", "created_at"
+    )
+    images = [FreeImageOut(**r) for r in rows]
+
     return FreePostResponse(
         id=post.id,
         title=post.title,
         content=post.content,
         category="free",
         author_id=post.user_id,
+        author_nickname=getattr(getattr(post, "user", None), "nickname", None),
         views=post.view_count,
-        images=image_items,
+        images=images,
         created_at=post.created_at,
         updated_at=post.updated_at,
     )
 
-
 async def to_share_response(p: PostModel) -> SharePostResponse:
-    files = [
-        ShareFileModel(
-            id=f.id,
-            file_url=f.file_url,
-            mime_type=f.mime_type,
-            size_bytes=f.size_bytes,
-        )
-        async for f in p.share_files.all()
-    ]
+    """
+    PostModel(+ user, + share_files) -> SharePostResponse
+    - 라우터에서: .prefetch_related("share_files").select_related("user") 권장
+    """
+    rows = await p.share_files.all().order_by("-id").values(
+        "id", "file_url", "mime_type", "size_bytes", "created_at"
+    )
+    files = [ShareFileOut(**r) for r in rows]
+
     return SharePostResponse(
         id=p.id,
         title=p.title,
         content=p.content,
         category="share",
         author_id=p.user_id,
+        author_nickname=getattr(getattr(p, "user", None), "nickname", None),
         views=p.view_count,
         files=files,
         created_at=p.created_at,

@@ -59,6 +59,7 @@ async def get_free_post(post_id: int):
     post = await (
         PostModel
         .filter(id=post_id, category=CategoryType.FREE)
+        .select_related("user")
         .prefetch_related("free_images")   # ← 역방향 프리패치
         .first()
     )
@@ -70,6 +71,7 @@ async def get_free_post(post_id: int):
     post = await (
         PostModel
         .filter(id=post_id, category=CategoryType.FREE)
+        .select_related("user")
         .prefetch_related("free_images")
         .first()
     )

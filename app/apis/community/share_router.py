@@ -60,6 +60,7 @@ async def get_share_post(post_id: int):
     post = await (
         PostModel
         .filter(id=post_id, category=CategoryType.SHARE)
+        .select_related("user")
         .prefetch_related("share_files")
         .first()
     )
@@ -71,6 +72,7 @@ async def get_share_post(post_id: int):
     post = await (
         PostModel
         .filter(id=post_id, category=CategoryType.SHARE)
+        .select_related("user")
         .prefetch_related("share_files")
         .first()
     )
