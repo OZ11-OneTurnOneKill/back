@@ -111,11 +111,13 @@ async def service_delete_post_by_post_id(*, post_id: int, user_id: int) -> dict:
 
 
 def compose_comment_response(c: CommentModel) -> dict:
+    nick = getattr(getattr(c, "user", None), "nickname", None)
     return {
         "id": c.id,
         "post_id": c.post_id,
         "content": c.content,
         "author_id": c.user_id,
+        "author_nickname": nick,
         "parent_id": c.parent_comment_id,   # ← 응답 DTO의 필드명(parent_id)로 맞춤
         "created_at": c.created_at,
         "updated_at": c.updated_at,
@@ -146,13 +148,13 @@ async def service_create_comment(*, post_id: int, user_id: int, content: str, pa
         await PostModel.filter(id=post_id).using_db(tx).update(comment_count=F("comment_count") + 1)
 
         # 타임스탬프/필드 최신화 위해 재조회
-        c = await CommentModel.get(id=c.id).using_db(tx)
+        c = await CommentModel.get(id=c.id).select_related("user").using_db(tx)
 
     return compose_comment_response(c)
 
 async def service_list_comments(*, post_id: int, order: str = "id", offset: int = 0, limit: int = 50) -> Dict[str, Any]:
     total = await CommentModel.filter(post_id=post_id).count()
-    rows = await CommentModel.filter(post_id=post_id).order_by(order).offset(offset).limit(limit)
+    rows = await CommentModel.filter(post_id=post_id).select_related("user").order_by(order).offset(offset).limit(limit)
     items = [compose_comment_response(r) for r in rows]
     return {"total": total, "count": len(items), "items": items}
 
@@ -166,6 +168,8 @@ async def service_update_comment(*, comment_id: int, user_id: int, content: str)
 
         c.content = content
         await c.save(using_db=tx)
+
+        c = await CommentModel.get(id=comment_id).select_related("user").using_db(tx)
 
     return compose_comment_response(c)
 

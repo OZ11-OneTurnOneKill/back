@@ -69,17 +69,18 @@ class SharePostResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-# ----- 공통: 커서 기반 목록 -----
-class CursorListItem(BaseModel):
+class CommentResponse(BaseModel):
     id: int
-    category: str
-    title: str
+    post_id: int
+    content: str
     author_id: int
     author_nickname: Optional[str] = None
-    views: int
+    parent_id: Optional[int] = None
     created_at: datetime
+    updated_at: datetime
 
-class CursorListResponse(BaseModel):
+
+class CommentListResponse(BaseModel):
+    total: int
     count: int
-    next_cursor: Optional[int]
-    items: List[CursorListItem]
+    items: list[CommentResponse]
