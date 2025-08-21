@@ -24,7 +24,7 @@ async def get_myinfo(user = Depends(get_current_user)):
     """
     유저 정보를 조회하는 라우터.
     """
-    return {'id': user.id, 'nickname': user.nickname, 'email': user.email}
+    return {'id': user.id, 'nickname': user.nickname, 'email': user.email, 'profile_image': user.profile_image_url}
 
 @router.patch('/myinfo')
 async def patch_nickname(patch_nickname: PatchNickname, user = Depends(get_current_user)):
@@ -51,8 +51,6 @@ async def post_update_token(request: Request,
     refresh token 유효성을 조회, 부합하면 access token을 재발급 해준다.
     :return:
     """
-
-
     access_token = request.cookies.get('access_token')
     print(access_token)
     payload = jwt.decode(access_token, google.SECRET_KEY, algorithms=['HS256'], options={'verify_signature': False})
