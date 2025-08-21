@@ -54,6 +54,60 @@ class GeminiService:
 
         self.safety_settings = safety_settings
 
+    def _extract_text_from_response(self, response) -> str:
+        """Gemini 응답에서 텍스트 추출
+
+        Args:
+            response: Gemini API 응답 객체
+
+        Returns:
+            추출된 텍스트
+
+        Raises:
+            ValueError: 텍스트 추출 실패 시
+        """
+        try:
+            # 방법 1: response.text가 가능한 경우 (단순 응답)
+            if hasattr(response, 'text') and response.text:
+                return response.text
+        except Exception as e:
+            logger.warning(f"⚠️ response.text 접근 실패: {e}")
+
+        try:
+            # 방법 2: response.parts 사용
+            if hasattr(response, 'parts') and response.parts:
+                text_parts = []
+                for part in response.parts:
+                    if hasattr(part, 'text') and part.text:
+                        text_parts.append(part.text)
+                if text_parts:
+                    return ''.join(text_parts)
+        except Exception as e:
+            logger.warning(f"⚠️ response.parts 접근 실패: {e}")
+
+        try:
+            # 방법 3: candidates를 통한 접근
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content:
+                    content = candidate.content
+                    if hasattr(content, 'parts') and content.parts:
+                        text_parts = []
+                        for part in content.parts:
+                            if hasattr(part, 'text') and part.text:
+                                text_parts.append(part.text)
+                        if text_parts:
+                            return ''.join(text_parts)
+        except Exception as e:
+            logger.warning(f"⚠️ candidates 접근 실패: {e}")
+
+        # 모든 방법 실패 시
+        logger.error(f"❌ 모든 텍스트 추출 방법 실패. Response 구조: {type(response)}")
+        if hasattr(response, '__dict__'):
+            logger.error(f"Response 속성들: {list(response.__dict__.keys())}")
+
+        raise ValueError("Gemini 응답에서 텍스트를 추출할 수 없습니다.")
+
     async def generate_study_plan(self, request) -> Dict[str, Any]:
         """디버깅이 추가된 학습계획 생성"""
         try:
@@ -64,15 +118,17 @@ class GeminiService:
 
             # Gemini API 호출
             response = await self.model.generate_content_async(prompt)
-            logger.info(f"📨 Gemini 응답 받음: {len(response.text)} 문자")
+            logger.info(f"📨 Gemini 응답 받음")
 
-            # 🔥 실제 응답 내용 로깅 (문제 파악용)
-            logger.info(f"📄 실제 응답 내용: {response.text[:500]}...")
+            # 🔥 수정된 부분: 안전한 텍스트 추출
+            response_text = self._extract_text_from_response(response)
+            logger.info(f"📄 응답 텍스트 추출 성공: {len(response_text)} 문자")
+            logger.info(f"📄 실제 응답 내용: {response_text[:500]}...")
 
             # JSON 파싱 시도
             try:
                 # 간단한 정리 후 파싱
-                clean_text = response.text.strip()
+                clean_text = response_text.strip()
                 if clean_text.startswith("```json"):
                     clean_text = clean_text[7:-3]
                 elif clean_text.startswith("```"):
@@ -87,7 +143,7 @@ class GeminiService:
 
             except json.JSONDecodeError as e:
                 logger.error(f"❌ JSON 파싱 실패: {e}")
-                logger.error(f"❌ 파싱 실패 원본: {response.text}")
+                logger.error(f"❌ 파싱 실패 원본: {response_text}")
 
                 # 🔥 임시 해결: 기본 응답 반환
                 return {
@@ -104,7 +160,8 @@ class GeminiService:
                         }
                     ],
                     "milestones": [{"week": 4, "milestone": "완료"}],
-                    "_fallback": True
+                    "_fallback": True,
+                    "_raw_response": response_text  # 디버깅용
                 }
 
         except Exception as e:
@@ -138,113 +195,72 @@ class GeminiService:
     4. **동기부여 요소**: 중간중간 성취감을 느낄 수 있는 마일스톤
     5. **집중도 극대화**: 핵심 스킬에 집중된 고강도 학습 계획
     6. **실습 중심**: 이론보다는 실제 프로젝트와 코딩에 집중
-    7. **진도 체크**: 매일 또는 격일로 진도 확인이 가능한 구조
-
-    **JSON 응답에 추가 필드 포함:**
-    - "daily_goals": 각 주차별 일일 목표 배열
-    - "challenge_tasks": 각 주차별 도전 과제
-    - "checkpoints": 구체적인 체크포인트
-    - "motivation_tips": 동기부여 팁
+    7. **진척 추적**: 매일 체크할 수 있는 구체적인 성과 지표
     """
         else:
-            challenge_instruction = """
-    📚 **일반 학습 모드**
+            challenge_instruction = f"""
+    📚 **일반 학습 모드** 📚
 
-    체계적이고 지속 가능한 학습 계획을 수립해주세요:
-    - 점진적인 난이도 증가
-    - 충분한 복습 시간 포함
-    - 실무 활용 가능한 내용 구성
+    이것은 {duration_days}일간의 체계적인 학습 계획입니다.
+    사용자의 페이스에 맞춰 꾸준히 학습할 수 있도록 구성해주세요.
     """
-
-        # ✅ 챌린지 모드에 따른 다른 JSON 스키마
-        if request.is_challenge:
-            json_schema = f'''
-    {{
-        "title": "챌린지 학습계획 제목",
-        "total_weeks": {duration_weeks},
-        "difficulty": "challenge|intensive|advanced",
-        "challenge_mode": true,
-        "weekly_plans": [
-            {{
-                "week": 1,
-                "title": "주차별 제목",
-                "topics": ["핵심 주제1", "핵심 주제2"],
-                "goals": ["구체적 달성 목표1", "구체적 달성 목표2"],
-                "daily_goals": [
-                    "1일차: 구체적 일일 목표",
-                    "2일차: 구체적 일일 목표",
-                    "3일차: 구체적 일일 목표"
-                ],
-                "challenge_tasks": [
-                    "도전 과제 1: 실제 구현해야 할 과제",
-                    "도전 과제 2: 실제 구현해야 할 과제"
-                ],
-                "checkpoints": ["체크포인트 1", "체크포인트 2"],
-                "estimated_hours": 15,
-                "intensity": "high"
-            }}
-        ],
-        "milestones": [
-            {{
-                "week": 2,
-                "milestone": "중간 목표 및 성취 지표",
-                "achievement_criteria": "구체적인 달성 기준"
-            }}
-        ],
-        "final_challenge": "최종 프로젝트 또는 도전 과제",
-        "motivation_tips": [
-            "동기부여 팁 1",
-            "동기부여 팁 2"
-        ]
-    }}'''
-        else:
-            json_schema = f'''
-    {{
-        "title": "학습계획 제목",
-        "total_weeks": {duration_weeks},
-        "difficulty": "beginner|intermediate|advanced|beginner_to_advanced",
-        "challenge_mode": false,
-        "weekly_plans": [
-            {{
-                "week": 1,
-                "title": "주차별 제목",
-                "topics": ["학습 주제1", "학습 주제2"],
-                "goals": ["달성 목표1", "달성 목표2"],
-                "estimated_hours": 8,
-                "intensity": "moderate"
-            }}
-        ],
-        "milestones": [
-            {{
-                "week": 4,
-                "milestone": "중간 목표 설명"
-            }}
-        ]
-    }}'''
 
         prompt = f"""
-    사용자 요청: {request.input_data}
+당신은 전문 교육 컨설턴트입니다. 사용자의 요청에 맞춰 최적의 학습 계획을 작성해주세요.
 
-    학습 기간: {request.start_date.strftime('%Y-%m-%d')} ~ {request.end_date.strftime('%Y-%m-%d')} (총 {duration_days}일, 약 {duration_weeks}주)
+{challenge_instruction}
 
-    {challenge_instruction}
+**요청 정보:**
+- 학습 주제: {request.input_data}
+- 시작일: {request.start_date.strftime('%Y-%m-%d')}
+- 종료일: {request.end_date.strftime('%Y-%m-%d')}
+- 총 기간: {duration_days}일 ({duration_weeks}주)
+- 챌린지 모드: {'예' if request.is_challenge else '아니오'}
 
-    다음 JSON 형식으로 상세한 학습계획을 작성해주세요:
+**응답 형식 (반드시 JSON으로만 응답):**
+```json
+{{
+    "title": "학습계획 제목",
+    "total_weeks": {duration_weeks},
+    "difficulty": "beginner|intermediate|advanced",
+    "estimated_total_hours": 0,
+    "weekly_plans": [
+        {{
+            "week": 1,
+            "title": "1주차 제목",
+            "topics": ["주제1", "주제2", "주제3"],
+            "goals": ["목표1", "목표2"],
+            "estimated_hours": 0,
+            "difficulty_level": "beginner|intermediate|advanced"
+        }}
+    ],
+    "milestones": [
+        {{
+            "week": 2,
+            "milestone": "달성할 마일스톤",
+            "verification_method": "검증 방법"
+        }}
+    ],
+    "resources": [
+        {{
+            "type": "documentation|tutorial|video|book",
+            "title": "자료 제목",
+            "url": "https://example.com",
+            "priority": "high|medium|low"
+        }}
+    ]
+}}
+```
 
-    {json_schema}
+**중요한 지침:**
+1. 응답은 반드시 유효한 JSON 형식이어야 합니다
+2. 주석이나 설명 텍스트 없이 순수 JSON만 반환하세요
+3. 실무에 바로 적용 가능한 구체적인 내용으로 구성하세요
+4. 각 주차별로 명확한 학습 목표와 검증 방법을 제시하세요
+5. 학습자의 수준을 고려하여 단계적으로 난이도를 조절하세요
 
-    ⚠️ **중요 주의사항:**
-    1. weekly_plans는 정확히 {duration_weeks}개의 주차 계획을 포함해야 합니다
-    2. 각 주차별로 구체적이고 실행 가능한 학습 목표를 제시해주세요
-    3. 난이도는 점진적으로 증가하도록 구성해주세요
-    4. 실제 학습 가능한 시간을 고려해주세요
-    5. {"챌린지 모드에서는 매일 실습할 수 있는 구체적인 과제를 포함해주세요" if request.is_challenge else "이론과 실습의 균형을 맞춰주세요"}
-    6. JSON 형식을 정확히 지켜주세요
-    7. 한국어로 작성해주세요
-
-    응답은 반드시 올바른 JSON 형식이어야 하며, 추가 설명이나 마크다운은 포함하지 마세요.
-    """
-
+지금 바로 위 형식에 맞춰 학습계획을 JSON으로 생성해주세요.
+"""
         return prompt
 
     async def generate_summary(
