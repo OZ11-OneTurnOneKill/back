@@ -1,6 +1,6 @@
 import json
 from google import generativeai as genai
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 from app.dtos.ai.study_plan import StudyPlanRequest
 
@@ -12,17 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiService:
-    """Gemini API 연동 서비스"""
+    """Gemini API 연동 서비스 - 완전 범용 학습계획 생성기"""
 
     def __init__(self, api_key: str):
         """Gemini 서비스 초기화"""
         self.api_key = api_key
         genai.configure(api_key=api_key)
 
-        # 응답 길이 제한 해제 및 설정 최적화
         generation_config = genai.types.GenerationConfig(
-            max_output_tokens=2048,  # 최대 토큰 수 증가
-            temperature=0.3,  # 일관성 있는 응답을 위해 낮춤
+            max_output_tokens=2048,
+            temperature=0.3,
             top_p=0.8,
             top_k=40
         )
@@ -32,313 +31,675 @@ class GeminiService:
             generation_config=generation_config
         )
 
-        # 안전 설정도 조정 (응답 차단 방지)
         safety_settings = [
-            {
-                "category": "HARM_CATEGORY_HARASSMENT",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_HATE_SPEECH",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                "threshold": "BLOCK_NONE"
-            }
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
         ]
-
         self.safety_settings = safety_settings
 
     def _extract_text_from_response(self, response) -> str:
-        """Gemini 응답에서 텍스트 추출 (강화된 디버깅 버전)
-
-        Args:
-            response: Gemini API 응답 객체
-
-        Returns:
-            추출된 텍스트
-
-        Raises:
-            ValueError: 텍스트 추출 실패 시
-        """
-        logger.info(f"🔍 응답 객체 타입: {type(response)}")
-        logger.info(f"🔍 응답 객체 속성: {dir(response)}")
-
-        # 응답 객체 전체 구조 로깅
+        """Gemini 응답에서 텍스트 추출"""
         try:
-            logger.info(f"🔍 응답 객체 전체 정보: {str(response)}")
-        except:
-            logger.info("🔍 응답 객체 str() 변환 실패")
-
-        try:
-            # 방법 1: response.text가 가능한 경우 (단순 응답)
-            logger.info("🔍 방법 1: response.text 시도")
-            if hasattr(response, 'text'):
-                logger.info(f"🔍 response.text 존재: {response.text is not None}")
-                if response.text:
-                    logger.info(f"✅ 방법 1 성공: {len(response.text)} 문자")
-                    return response.text
-                else:
-                    logger.warning("⚠️ response.text가 None 또는 빈 문자열")
-            else:
-                logger.warning("⚠️ response.text 속성이 존재하지 않음")
+            if hasattr(response, 'text') and response.text:
+                return response.text
         except Exception as e:
             logger.warning(f"⚠️ response.text 접근 실패: {e}")
 
         try:
-            # 방법 2: response.parts 사용
-            logger.info("🔍 방법 2: response.parts 시도")
-            if hasattr(response, 'parts'):
-                logger.info(f"🔍 response.parts 존재: {response.parts is not None}")
-                if response.parts:
-                    text_parts = []
-                    for i, part in enumerate(response.parts):
-                        logger.info(f"🔍 Part {i}: {type(part)}, hasattr text: {hasattr(part, 'text')}")
-                        if hasattr(part, 'text') and part.text:
-                            text_parts.append(part.text)
-                    if text_parts:
-                        result = ''.join(text_parts)
-                        logger.info(f"✅ 방법 2 성공: {len(result)} 문자")
-                        return result
-                else:
-                    logger.warning("⚠️ response.parts가 None 또는 빈 리스트")
-            else:
-                logger.warning("⚠️ response.parts 속성이 존재하지 않음")
-        except Exception as e:
-            logger.warning(f"⚠️ response.parts 접근 실패: {e}")
-
-        try:
-            # 방법 3: candidates를 통한 접근
-            logger.info("🔍 방법 3: candidates 시도")
-            if hasattr(response, 'candidates'):
-                logger.info(f"🔍 candidates 존재: {response.candidates is not None}")
-                if response.candidates and len(response.candidates) > 0:
-                    candidate = response.candidates[0]
-                    logger.info(f"🔍 첫 번째 candidate: {type(candidate)}")
-
-                    if hasattr(candidate, 'content'):
-                        content = candidate.content
-                        logger.info(f"🔍 candidate.content: {type(content)}")
-
-                        if hasattr(content, 'parts'):
-                            logger.info(f"🔍 content.parts 존재: {content.parts is not None}")
-                            if content.parts:
-                                text_parts = []
-                                for i, part in enumerate(content.parts):
-                                    logger.info(f"🔍 Content Part {i}: {type(part)}")
-                                    if hasattr(part, 'text') and part.text:
-                                        text_parts.append(part.text)
-                                if text_parts:
-                                    result = ''.join(text_parts)
-                                    logger.info(f"✅ 방법 3 성공: {len(result)} 문자")
-                                    return result
-                else:
-                    logger.warning("⚠️ candidates가 None 또는 빈 리스트")
-            else:
-                logger.warning("⚠️ candidates 속성이 존재하지 않음")
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content:
+                    if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                        text_parts = []
+                        for part in candidate.content.parts:
+                            if hasattr(part, 'text') and part.text:
+                                text_parts.append(part.text)
+                        if text_parts:
+                            return ''.join(text_parts)
         except Exception as e:
             logger.warning(f"⚠️ candidates 접근 실패: {e}")
 
-        # 방법 4: _result 속성 확인 (일부 경우)
-        try:
-            logger.info("🔍 방법 4: _result 시도")
-            if hasattr(response, '_result'):
-                logger.info(f"🔍 _result 존재: {response._result}")
-                # _result에서 텍스트 추출 시도
-        except Exception as e:
-            logger.warning(f"⚠️ _result 접근 실패: {e}")
-
-        # 모든 방법 실패 시 - 더 상세한 디버깅 정보
-        logger.error(f"❌ 모든 텍스트 추출 방법 실패")
-        logger.error(f"❌ Response 구조: {type(response)}")
-
-        try:
-            if hasattr(response, '__dict__'):
-                logger.error(f"❌ Response __dict__: {response.__dict__}")
-        except:
-            logger.error("❌ Response __dict__ 접근 실패")
-
-        # 임시로 빈 JSON 반환하여 완전 실패 방지
-        logger.warning("⚠️ 임시 빈 응답 반환")
-        return '{"title": "임시 학습계획", "total_weeks": 4, "weekly_plans": []}'
+        logger.error("❌ 모든 텍스트 추출 방법 실패")
+        return "빈 응답"
 
     async def generate_study_plan(self, request) -> Dict[str, Any]:
-        """디버깅이 추가된 학습계획 생성"""
+        """완전 범용 학습계획 생성 시스템"""
         try:
             logger.info(f"🔍 API 키 확인: {self.api_key[:10]}..." if self.api_key else "❌ API 키 없음")
 
-            prompt = self._build_prompt(request)
+            prompt = self._build_universal_prompt(request)
             logger.info(f"📝 프롬프트 생성 완료: {len(prompt)} 문자")
 
             # Gemini API 호출
             response = await self.model.generate_content_async(prompt)
-            logger.info(f"📨 Gemini 응답 받음")
-
-            # 🔥 수정된 부분: 안전한 텍스트 추출
             response_text = self._extract_text_from_response(response)
             logger.info(f"📄 응답 텍스트 추출 성공: {len(response_text)} 문자")
-            logger.info(f"📄 실제 응답 내용: {response_text[:500]}...")
 
-            # JSON 파싱 시도 (개선된 로직)
+            # JSON 파싱 시도
             try:
-                clean_text = response_text.strip()
-                logger.info(f"🧹 원본 텍스트 길이: {len(clean_text)}")
-                logger.info(f"🧹 원본 텍스트 시작: {clean_text[:100]}...")
-                logger.info(f"🧹 원본 텍스트 끝: {clean_text[-100:]}")
-
-                # 더 안전한 코드 블록 제거
-                if clean_text.startswith("```json"):
-                    # ```json으로 시작하는 경우
-                    start_index = clean_text.find('\n') + 1  # 첫 번째 줄바꿈 다음부터
-                    end_index = clean_text.rfind("```")  # 마지막 ``` 위치
-                    if end_index > start_index:
-                        clean_text = clean_text[start_index:end_index]
-                    else:
-                        clean_text = clean_text[7:]  # ```json 제거만
-                elif clean_text.startswith("```"):
-                    # ```로 시작하는 경우
-                    start_index = clean_text.find('\n') + 1
-                    end_index = clean_text.rfind("```")
-                    if end_index > start_index:
-                        clean_text = clean_text[start_index:end_index]
-                    else:
-                        clean_text = clean_text[3:]  # ``` 제거만
-
-                clean_text = clean_text.strip()
-                logger.info(f"🧹 정리된 텍스트 길이: {len(clean_text)}")
-                logger.info(f"🧹 정리된 텍스트 시작: {clean_text[:200]}...")
-
+                clean_text = self._clean_json_response(response_text)
                 parsed_response = json.loads(clean_text)
                 logger.info("✅ JSON 파싱 성공!")
-
                 return parsed_response
 
             except json.JSONDecodeError as e:
                 logger.error(f"❌ JSON 파싱 실패: {e}")
-                logger.error(f"❌ 파싱 실패 원본: {response_text}")
-
-                # 🔥 임시 해결: 기본 응답 반환
-                return {
-                    "title": f"{request.input_data} 학습계획",
-                    "total_weeks": 4,
-                    "difficulty": "beginner",
-                    "weekly_plans": [
-                        {
-                            "week": 1,
-                            "title": "1주차: 기초 학습",
-                            "topics": ["기본 개념", "실습"],
-                            "goals": ["기초 이해"],
-                            "estimated_hours": 8
-                        }
-                    ],
-                    "milestones": [{"week": 4, "milestone": "완료"}],
-                    "_fallback": True,
-                    "_raw_response": response_text  # 디버깅용
-                }
+                return self._generate_intelligent_fallback_plan(request, response_text)
 
         except Exception as e:
             logger.error(f"❌ Gemini API 호출 전체 실패: {e}")
-            raise ValueError(f"Gemini API error: {str(e)}")
+            return self._generate_intelligent_fallback_plan(request, str(e))
 
-    def _build_prompt(self, request: StudyPlanRequest) -> str:
-        """학습계획 생성 프롬프트 구성
+    def _clean_json_response(self, response_text: str) -> str:
+        """JSON 응답 정리"""
+        clean_text = response_text.strip()
 
-        Args:
-            request: 학습계획 요청 데이터
+        if clean_text.startswith("```json"):
+            start_index = clean_text.find('\n') + 1
+            end_index = clean_text.rfind("```")
+            if end_index > start_index:
+                clean_text = clean_text[start_index:end_index]
+            else:
+                clean_text = clean_text[7:]
+        elif clean_text.startswith("```"):
+            start_index = clean_text.find('\n') + 1
+            end_index = clean_text.rfind("```")
+            if end_index > start_index:
+                clean_text = clean_text[start_index:end_index]
+            else:
+                clean_text = clean_text[3:]
 
-        Returns:
-            구성된 프롬프트 문자열
-        """
-        # 학습 기간 계산
+        return clean_text.strip()
+
+    def _build_universal_prompt(self, request: StudyPlanRequest) -> str:
+        """완전 범용 프롬프트 생성기 - 어떤 분야든 대응"""
+
         duration_days = (request.end_date - request.start_date).days
         duration_weeks = max(1, duration_days // 7)
 
-        # ✅ 챌린지 모드 여부에 따른 상세한 지침
-        if request.is_challenge:
-            challenge_instruction = f"""
-    🔥 **집중 챌린지 모드** 🔥
-
-    이것은 {duration_days}일간의 집중 챌린지입니다. 다음 사항을 반드시 포함해주세요:
-
-    **챌린지 특화 요구사항:**
-    1. **일일 목표**: 매일 달성해야 할 구체적인 목표 설정
-    2. **체크포인트**: 주 단위로 명확한 성취 지표 제공
-    3. **도전 과제**: 각 주마다 실력을 테스트할 수 있는 구체적인 과제
-    4. **동기부여 요소**: 중간중간 성취감을 느낄 수 있는 마일스톤
-    5. **집중도 극대화**: 핵심 스킬에 집중된 고강도 학습 계획
-    6. **실습 중심**: 이론보다는 실제 프로젝트와 코딩에 집중
-    7. **진척 추적**: 매일 체크할 수 있는 구체적인 성과 지표
-    """
-        else:
-            challenge_instruction = f"""
-    📚 **일반 학습 모드** 📚
-
-    이것은 {duration_days}일간의 체계적인 학습 계획입니다.
-    사용자의 페이스에 맞춰 꾸준히 학습할 수 있도록 구성해주세요.
-    """
+        # 사용자 입력 분석
+        subject_analysis = self._analyze_user_input(request.input_data)
+        duration_info = self._get_duration_characteristics(duration_weeks)
+        challenge_instruction = self._get_challenge_instruction(request.is_challenge, duration_weeks)
 
         prompt = f"""
-당신은 전문 교육 컨설턴트입니다. 사용자의 요청에 맞춰 최적의 학습 계획을 작성해주세요.
+당신은 세계 최고의 교육 설계 전문가이자 학습 컨설턴트입니다.
+사용자가 요청한 "{request.input_data}"에 대한 {duration_weeks}주간 학습계획을 설계해주세요.
 
 {challenge_instruction}
 
-**요청 정보:**
+**사용자 요청 분석:**
 - 학습 주제: {request.input_data}
-- 시작일: {request.start_date.strftime('%Y-%m-%d')}
-- 종료일: {request.end_date.strftime('%Y-%m-%d')}
-- 총 기간: {duration_days}일 ({duration_weeks}주)
-- 챌린지 모드: {'예' if request.is_challenge else '아니오'}
+- 학습 기간: {duration_days}일 ({duration_weeks}주)
+- 목표 키워드: {subject_analysis['keywords']}
+- 학습 목적: {subject_analysis['purpose']}
+- 예상 난이도: {duration_info['difficulty']}
+- 권장 학습시간: {duration_info['recommended_hours']}시간
 
-**응답 형식 (반드시 JSON으로만 응답):**
+**설계 철학:**
+1. **적응성**: 어떤 분야든 체계적으로 접근
+2. **실용성**: 실제 생활이나 업무에 바로 적용 가능
+3. **진행성**: 기초 → 중급 → 고급 → 마스터 단계적 발전
+4. **구체성**: 추상적 표현 금지, 명확하고 구체적인 내용
+5. **검증성**: 학습 성과를 측정할 수 있는 명확한 기준
+
+**학습 단계 설계 원칙:**
+- 1단계 (기초): 개념 이해 + 기본 도구/방법 습득
+- 2단계 (응용): 실무 기법 + 실습 프로젝트 수행  
+- 3단계 (심화): 고급 기법 + 창의적 응용
+- 4단계 (완성): 전문성 구축 + 실전 적용
+
+**필수 포함 요소:**
+- {duration_weeks}주 전체 상세 계획
+- 매주 7일간 구체적 일별 목표
+- 실습할 수 있는 구체적 과제
+- 학습 성과 측정 방법
+- 추천 학습 자료와 도구
+- 실전 활용 팁
+
+**JSON 응답 형식:**
 ```json
 {{
-    "title": "학습계획 제목",
+    "title": "{duration_weeks}주 {request.input_data} 완전 마스터 과정",
     "total_weeks": {duration_weeks},
-    "difficulty": "beginner|intermediate|advanced",
-    "estimated_total_hours": 0,
+    "difficulty": "{duration_info['difficulty']}",
+    "estimated_total_hours": {duration_info['recommended_hours']},
+    "description": "이 과정을 통해 달성할 수 있는 최종 목표와 핵심 가치",
+    "subject_analysis": {{
+        "field_type": "{subject_analysis['field_type']}",
+        "learning_approach": "{subject_analysis['approach']}",
+        "key_skills": {subject_analysis['skills']},
+        "practical_applications": {subject_analysis['applications']}
+    }},
     "weekly_plans": [
         {{
             "week": 1,
-            "title": "1주차 제목",
-            "topics": ["주제1", "주제2", "주제3"],
-            "goals": ["목표1", "목표2"],
-            "estimated_hours": 0,
-            "difficulty_level": "beginner|intermediate|advanced"
+            "title": "1주차: {request.input_data} 기초 완성",
+            "theme": "Foundation & Environment Setup",
+            "topics": [
+                "기본 개념과 용어 정리",
+                "필요한 도구와 환경 준비",
+                "기초 이론과 원리 이해",
+                "첫 번째 실습과 적용"
+            ],
+            "daily_goals": [
+                "1일: 전체 개요 파악 및 학습 환경 구성",
+                "2일: 핵심 개념과 기본 용어 완전 이해",
+                "3일: 기초 도구 사용법 익히기",
+                "4일: 간단한 실습으로 기본기 다지기",
+                "5일: 기초 이론을 실제로 적용해보기",
+                "6일: 첫 번째 미니 프로젝트 완성",
+                "7일: 1주차 학습 내용 정리 및 복습"
+            ],
+            "goals": [
+                "{request.input_data}의 기본 개념 완전 이해",
+                "학습에 필요한 모든 준비 완료",
+                "기초 실습을 통한 자신감 확보"
+            ],
+            "assignments": [
+                "기본 개념 정리 노트 작성",
+                "도구 사용법 실습",
+                "간단한 기초 프로젝트 완성"
+            ],
+            "estimated_hours": {int(duration_info['recommended_hours'] / duration_weeks)},
+            "difficulty_level": "beginner"
         }}
     ],
     "milestones": [
         {{
-            "week": 2,
-            "milestone": "달성할 마일스톤",
-            "verification_method": "검증 방법"
+            "week": {max(1, duration_weeks // 4)},
+            "milestone": "기초 완성 및 실습 능력 확보",
+            "verification_method": "기본 개념 테스트 + 실습 과제 완성"
         }}
     ],
     "resources": [
         {{
-            "type": "documentation|tutorial|video|book",
-            "title": "자료 제목",
-            "url": "https://example.com",
-            "priority": "high|medium|low"
+            "type": "essential",
+            "title": "{request.input_data} 기초 학습 자료",
+            "url": "해당 분야 전문 사이트 또는 교재",
+            "priority": "high"
         }}
+    ],
+    "tips": [
+        "매일 꾸준한 학습이 가장 중요한 성공 요소",
+        "이론 학습 후 반드시 실습으로 확인하기",
+        "어려운 부분은 기초로 돌아가서 다시 정리",
+        "동료나 전문가와 소통하며 피드백 받기"
+    ],
+    "success_factors": [
+        "일관된 학습 습관과 시간 관리",
+        "능동적인 실습과 적극적인 도전",
+        "지속적인 피드백과 개선",
+        "실무 적용을 위한 창의적 사고"
     ]
 }}
 ```
 
-**중요한 지침:**
-1. 응답은 반드시 유효한 JSON 형식이어야 합니다
-2. 주석이나 설명 텍스트 없이 순수 JSON만 반환하세요
-3. 실무에 바로 적용 가능한 구체적인 내용으로 구성하세요
-4. 각 주차별로 명확한 학습 목표와 검증 방법을 제시하세요
-5. 학습자의 수준을 고려하여 단계적으로 난이도를 조절하세요
+**중요 지침:**
+- 반드시 {duration_weeks}주 전체 계획을 상세히 작성
+- 각 주마다 7일간의 구체적인 daily_goals 제공  
+- "{request.input_data}" 분야의 특성을 정확히 반영
+- 실현 가능하고 측정 가능한 목표 설정
+- 완벽한 JSON 형식으로만 응답
 
-지금 바로 위 형식에 맞춰 학습계획을 JSON으로 생성해주세요.
+지금 바로 "{request.input_data}" 분야의 최고 품질 {duration_weeks}주 학습계획을 생성해주세요.
 """
         return prompt
+
+    def _analyze_user_input(self, input_text: str) -> Dict[str, Any]:
+        """사용자 입력 지능적 분석 - 어떤 분야든 분석"""
+
+        # 기본 정보 추출
+        words = input_text.lower().split()
+
+        # 키워드 추출 (조사, 전치사 등 제거)
+        stop_words = ['을', '를', '이', '가', '에', '에서', '으로', '로', '와', '과', '의', '은', '는',
+                      '하고', '하는', '하기', '에대해', '에 대해', '공부', '학습', '배우', '익히']
+        keywords = [word for word in words if word not in stop_words and len(word) > 1]
+
+        # 학습 목적 추론
+        purpose = self._infer_learning_purpose(input_text)
+
+        # 분야 유형 추론
+        field_type = self._infer_field_type(input_text, keywords)
+
+        # 학습 접근법 추론
+        approach = self._infer_learning_approach(field_type)
+
+        # 핵심 스킬 추론
+        skills = self._infer_key_skills(keywords, field_type)
+
+        # 실용적 활용법 추론
+        applications = self._infer_practical_applications(keywords, field_type)
+
+        return {
+            "keywords": keywords[:5],  # 상위 5개 키워드
+            "purpose": purpose,
+            "field_type": field_type,
+            "approach": approach,
+            "skills": skills,
+            "applications": applications
+        }
+
+    def _infer_learning_purpose(self, input_text: str) -> str:
+        """학습 목적 추론"""
+        input_lower = input_text.lower()
+
+        if any(word in input_lower for word in ['취업', '면접', '이직', '커리어']):
+            return "취업/커리어 준비"
+        elif any(word in input_lower for word in ['시험', '자격증', '인증', '점수']):
+            return "시험/자격증 취득"
+        elif any(word in input_lower for word in ['취미', '여가', '즐거움', '재미']):
+            return "취미/개인 발전"
+        elif any(word in input_lower for word in ['업무', '직무', '실무', '회사']):
+            return "업무 역량 강화"
+        elif any(word in input_lower for word in ['창업', '사업', '비즈니스']):
+            return "창업/사업 준비"
+        else:
+            return "전문성 개발 및 역량 강화"
+
+    def _infer_field_type(self, input_text: str, keywords: List[str]) -> str:
+        """분야 유형 추론"""
+        input_lower = input_text.lower()
+
+        # 기술/IT 관련
+        if any(word in input_lower for word in ['프로그래밍', '개발', '코딩', '앱', '웹', 'ai', 'python', 'java']):
+            return "기술/IT"
+
+        # 언어 관련
+        elif any(word in input_lower for word in ['영어', '일본어', '중국어', '언어', 'english', 'japanese']):
+            return "언어학습"
+
+        # 예술/창작 관련
+        elif any(word in input_lower for word in ['그림', '음악', '사진', '영상', '디자인', '창작']):
+            return "예술/창작"
+
+        # 비즈니스 관련
+        elif any(word in input_lower for word in ['마케팅', '경영', '회계', '기획', '영업', '비즈니스']):
+            return "비즈니스/경영"
+
+        # 학문 관련
+        elif any(word in input_lower for word in ['수학', '물리', '화학', '역사', '과학', '연구']):
+            return "학문/연구"
+
+        # 생활/실용 관련
+        elif any(word in input_lower for word in ['요리', '운동', '건강', '여행', '생활']):
+            return "생활/실용"
+
+        # 기타
+        else:
+            return "전문기술/특수분야"
+
+    def _infer_learning_approach(self, field_type: str) -> str:
+        """학습 접근법 추론"""
+        approach_map = {
+            "기술/IT": "이론 + 실습 중심의 hands-on 학습",
+            "언어학습": "듣기, 말하기, 읽기, 쓰기 4영역 균형 학습",
+            "예술/창작": "이론 기초 + 창작 실습 + 포트폴리오 구성",
+            "비즈니스/경영": "이론 학습 + 사례 분석 + 실무 적용",
+            "학문/연구": "개념 이해 + 논리적 사고 + 문제 해결",
+            "생활/실용": "기초 이론 + 실전 연습 + 응용 활용",
+            "전문기술/특수분야": "단계적 학습 + 전문성 구축 + 실무 적용"
+        }
+        return approach_map.get(field_type, "체계적 이론 학습 + 실무 적용")
+
+    def _infer_key_skills(self, keywords: List[str], field_type: str) -> List[str]:
+        """핵심 스킬 추론"""
+        base_skills = {
+            "기술/IT": ["프로그래밍 능력", "문제 해결", "논리적 사고", "도구 활용"],
+            "언어학습": ["회화 능력", "문법 이해", "어휘력", "문화 이해"],
+            "예술/창작": ["창의적 표현", "기술적 숙련", "미적 감각", "작품 완성"],
+            "비즈니스/경영": ["분석적 사고", "의사소통", "전략 기획", "실행력"],
+            "학문/연구": ["이론적 이해", "연구 방법", "비판적 사고", "학술 작성"],
+            "생활/실용": ["기본 기법", "응용 능력", "창의적 활용", "지속적 실천"],
+            "전문기술/특수분야": ["전문 지식", "실무 기법", "응용 능력", "지속적 개발"]
+        }
+
+        # 키워드 기반 맞춤 스킬 추가
+        custom_skills = [f"{keyword} 전문성" for keyword in keywords[:2]]
+
+        return base_skills.get(field_type, ["기초 이해", "실무 적용", "전문성 개발", "창의적 사고"]) + custom_skills
+
+    def _infer_practical_applications(self, keywords: List[str], field_type: str) -> List[str]:
+        """실용적 활용법 추론"""
+        base_applications = {
+            "기술/IT": ["업무 자동화", "개인 프로젝트", "포트폴리오 구축", "커리어 발전"],
+            "언어학습": ["해외 여행", "업무 활용", "문화 교류", "글로벌 소통"],
+            "예술/창작": ["작품 전시", "프리랜서 활동", "취미 활동", "부수입 창출"],
+            "비즈니스/경영": ["업무 효율성", "의사결정", "팀 관리", "사업 기획"],
+            "학문/연구": ["학술 연구", "전문성 인정", "교육 활동", "지식 공유"],
+            "생활/실용": ["일상 개선", "취미 활동", "가족과 공유", "건강한 라이프스타일"],
+            "전문기술/특수분야": ["전문 업무", "컨설팅", "교육 활동", "연구 개발"]
+        }
+
+        return base_applications.get(field_type, ["개인 발전", "실무 활용", "전문성 구축", "네트워킹"])
+
+    def _get_duration_characteristics(self, weeks: int) -> Dict[str, Any]:
+        """기간별 특성 분석"""
+        if weeks <= 1:
+            return {
+                "characteristics": "속성 입문",
+                "difficulty": "beginner",
+                "recommended_hours": 8,
+                "intensity": "매우 높음"
+            }
+        elif weeks <= 4:
+            return {
+                "characteristics": "집중 기초",
+                "difficulty": "beginner_to_intermediate",
+                "recommended_hours": weeks * 12,
+                "intensity": "높음"
+            }
+        elif weeks <= 8:
+            return {
+                "characteristics": "체계적 학습",
+                "difficulty": "intermediate",
+                "recommended_hours": weeks * 10,
+                "intensity": "보통"
+            }
+        elif weeks <= 16:
+            return {
+                "characteristics": "심화 학습",
+                "difficulty": "intermediate_to_advanced",
+                "recommended_hours": weeks * 8,
+                "intensity": "보통"
+            }
+        else:
+            return {
+                "characteristics": "전문가 과정",
+                "difficulty": "advanced",
+                "recommended_hours": weeks * 6,
+                "intensity": "낮음"
+            }
+
+    def _get_challenge_instruction(self, is_challenge: bool, weeks: int) -> str:
+        """챌린지 모드별 지침"""
+        if is_challenge:
+            return f"""
+🔥 **{weeks}주 집중 챌린지 모드** 🔥
+- 고강도 몰입 학습으로 최대 효과 달성
+- 매일 구체적이고 도전적인 목표 설정
+- 실습과 프로젝트 중심의 체험 학습
+- 주차별 명확한 성취 기준과 인증 방법
+- 포기하지 않는 강한 의지력과 지속성 요구
+"""
+        else:
+            return f"""
+📚 **{weeks}주 체계적 학습 모드** 📚
+- 개인 페이스에 맞춘 지속 가능한 학습
+- 이론과 실습의 균형잡힌 커리큘럼
+- 단계적 난이도 상승과 충분한 복습
+- 안정적 기초 구축과 점진적 발전
+- 장기적 관점의 견고한 실력 완성
+"""
+
+    def _generate_intelligent_fallback_plan(self, request, error_info: str) -> Dict[str, Any]:
+        """지능형 대체 학습계획 생성"""
+
+        if request:
+            input_text = request.input_data
+            duration_days = (request.end_date - request.start_date).days
+            duration_weeks = max(1, duration_days // 7)
+            is_challenge = getattr(request, 'is_challenge', False)
+        else:
+            input_text = "일반 학습"
+            duration_weeks = 4
+            is_challenge = False
+
+        # 사용자 입력 분석
+        analysis = self._analyze_user_input(input_text)
+        duration_info = self._get_duration_characteristics(duration_weeks)
+
+        # 완전한 학습계획 동적 생성
+        return self._create_adaptive_study_plan(
+            input_text, analysis, duration_weeks, duration_info, is_challenge, error_info
+        )
+
+    def _create_adaptive_study_plan(
+            self,
+            subject: str,
+            analysis: Dict[str, Any],
+            weeks: int,
+            duration_info: Dict[str, Any],
+            is_challenge: bool,
+            error_info: str
+    ) -> Dict[str, Any]:
+        """완전 적응형 학습계획 생성"""
+
+        mode = "집중 챌린지" if is_challenge else "체계적 학습"
+
+        # 기본 계획 구조
+        plan = {
+            "title": f"{weeks}주 {subject} 완전 마스터 {mode} 과정",
+            "total_weeks": weeks,
+            "difficulty": duration_info['difficulty'],
+            "estimated_total_hours": duration_info['recommended_hours'],
+            "description": f"{subject} 분야의 {duration_info['characteristics']} 학습을 통해 {analysis['purpose']} 달성",
+            "subject_analysis": {
+                "field_type": analysis['field_type'],
+                "learning_approach": analysis['approach'],
+                "key_skills": analysis['skills'],
+                "practical_applications": analysis['applications']
+            },
+            "weekly_plans": [],
+            "milestones": [],
+            "resources": [],
+            "tips": [
+                "매일 꾸준한 학습이 성공의 핵심",
+                "이론과 실습의 균형을 맞추어 진행",
+                "실패를 학습의 기회로 받아들이기",
+                "동료나 전문가와 적극적으로 소통하기"
+            ],
+            "success_factors": [
+                "일관된 학습 습관과 효율적 시간 관리",
+                "능동적인 실습과 지속적인 도전 정신",
+                "피드백 수용과 지속적인 개선 의지",
+                "실무 적용을 위한 창의적 사고력"
+            ],
+            "_fallback": True,
+            "_source": "intelligent_adaptive_plan",
+            "_analysis": analysis,
+            "_error_info": error_info[:100] if error_info else "none"
+        }
+
+        # 주차별 계획 동적 생성
+        for week in range(1, weeks + 1):
+            week_plan = self._generate_adaptive_week_plan(week, weeks, subject, analysis, duration_info)
+            plan["weekly_plans"].append(week_plan)
+
+        # 마일스톤 동적 생성
+        plan["milestones"] = self._generate_adaptive_milestones(weeks, subject, analysis)
+
+        # 자료 동적 생성
+        plan["resources"] = self._generate_adaptive_resources(subject, analysis)
+
+        return plan
+
+    def _generate_adaptive_week_plan(
+            self,
+            week: int,
+            total_weeks: int,
+            subject: str,
+            analysis: Dict[str, Any],
+            duration_info: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """적응형 주차별 계획 생성"""
+
+        # 진행률 기반 단계 결정
+        progress = week / total_weeks
+
+        if progress <= 0.25:
+            stage = "기초"
+            stage_en = "Foundation"
+            difficulty = "beginner"
+            focus = "개념 이해와 기본기 다지기"
+        elif progress <= 0.5:
+            stage = "응용"
+            stage_en = "Application"
+            difficulty = "intermediate"
+            focus = "실무 기법과 응용 능력"
+        elif progress <= 0.75:
+            stage = "심화"
+            stage_en = "Advanced"
+            difficulty = "intermediate"
+            focus = "고급 기법과 전문성"
+        else:
+            stage = "완성"
+            stage_en = "Mastery"
+            difficulty = "advanced"
+            focus = "통합과 실전 적용"
+
+        # 분야별 맞춤 주제 생성
+        topics = self._generate_stage_topics(stage, subject, analysis)
+
+        # 일별 목표 동적 생성
+        daily_goals = self._generate_daily_goals(week, stage, subject)
+
+        # 목표 및 과제 생성
+        goals = [
+            f"{subject} {stage} 단계 핵심 개념 완전 이해",
+            f"{focus}을 통한 실무 역량 개발",
+            f"다음 단계 진행을 위한 견고한 기반 구축"
+        ]
+
+        assignments = [
+            f"{stage} 수준의 실습 과제 완성",
+            f"{subject} 관련 미니 프로젝트 수행",
+            f"{week}주차 학습 성과 정리 및 발표"
+        ]
+
+        return {
+            "week": week,
+            "title": f"{week}주차: {subject} {stage} 마스터",
+            "theme": f"{stage_en} & {focus}",
+            "topics": topics,
+            "daily_goals": daily_goals,
+            "goals": goals,
+            "assignments": assignments,
+            "estimated_hours": duration_info['recommended_hours'] // total_weeks,
+            "difficulty_level": difficulty
+        }
+
+    def _generate_stage_topics(self, stage: str, subject: str, analysis: Dict[str, Any]) -> List[str]:
+        """단계별 주제 동적 생성"""
+
+        keywords = analysis['keywords']
+
+        if stage == "기초":
+            return [
+                f"{subject}의 기본 개념과 핵심 용어",
+                f"학습에 필요한 도구와 환경 설정",
+                f"{keywords[0] if keywords else subject} 기초 이론과 원리",
+                f"간단한 실습과 기본 기법 연습",
+                f"기초 프로젝트를 통한 개념 적용",
+                f"학습 방향 설정과 목표 구체화"
+            ]
+        elif stage == "응용":
+            return [
+                f"{subject} 중급 개념과 실무 기법",
+                f"효율적인 작업 방법과 도구 활용",
+                f"실전 프로젝트 기획과 설계",
+                f"문제 해결 방법론과 접근법",
+                f"품질 향상을 위한 고급 기법",
+                f"실무 사례 분석과 적용"
+            ]
+        elif stage == "심화":
+            return [
+                f"{subject} 고급 기법과 전문 지식",
+                f"창의적 접근법과 혁신적 사고",
+                f"다른 분야와의 융합과 확장",
+                f"최신 트렌드와 미래 전망",
+                f"전문가 수준의 포트폴리오 구성",
+                f"네트워킹과 커뮤니티 참여"
+            ]
+        else:  # 완성
+            return [
+                f"{subject} 전문성 통합과 완성",
+                f"실전 적용과 성과 측정",
+                f"지속적 발전을 위한 계획 수립",
+                f"교육과 멘토링 능력 개발",
+                f"사업화 또는 전문 활동 준비",
+                f"평생 학습 체계 구축"
+            ]
+
+    def _generate_daily_goals(self, week: int, stage: str, subject: str) -> List[str]:
+        """일별 목표 동적 생성"""
+
+        return [
+            f"1일: {subject} {stage} 개념 학습 및 이론 정리",
+            f"2일: 핵심 도구와 방법론 실습",
+            f"3일: 실전 적용을 통한 기법 연마",
+            f"4일: 프로젝트 또는 과제 수행",
+            f"5일: 복습과 심화 학습을 통한 완전 이해",
+            f"6일: 응용과 창의적 활용 연습",
+            f"7일: {week}주차 학습 완성 및 다음 단계 준비"
+        ]
+
+    def _generate_adaptive_milestones(self, weeks: int, subject: str, analysis: Dict[str, Any]) -> List[Dict[str, str]]:
+        """적응형 마일스톤 생성"""
+
+        milestones = []
+
+        # 기간에 따른 마일스톤 설정
+        if weeks <= 4:
+            milestone_weeks = [weeks]
+            milestone_names = [f"{subject} 기초 완성"]
+        elif weeks <= 8:
+            milestone_weeks = [weeks // 2, weeks]
+            milestone_names = [f"{subject} 기초 완성", f"{subject} 실무 활용"]
+        else:
+            milestone_weeks = [weeks // 4, weeks // 2, (weeks * 3) // 4, weeks]
+            milestone_names = [
+                f"{subject} 기초 완성",
+                f"{subject} 응용 능력",
+                f"{subject} 심화 전문성",
+                f"{subject} 마스터 달성"
+            ]
+
+        for week, name in zip(milestone_weeks, milestone_names):
+            milestones.append({
+                "week": week,
+                "milestone": name,
+                "verification_method": f"{name} 프로젝트 완성 및 실무 적용 시연"
+            })
+
+        return milestones
+
+    def _generate_adaptive_resources(self, subject: str, analysis: Dict[str, Any]) -> List[Dict[str, str]]:
+        """적응형 학습 자료 생성"""
+
+        return [
+            {
+                "type": "essential",
+                "title": f"{subject} 기초 학습서",
+                "url": f"{subject} 관련 전문 도서 또는 온라인 강의",
+                "priority": "high"
+            },
+            {
+                "type": "practice",
+                "title": f"{subject} 실습 플랫폼",
+                "url": f"{subject} 연습을 위한 온라인 도구나 플랫폼",
+                "priority": "high"
+            },
+            {
+                "type": "community",
+                "title": f"{subject} 전문가 커뮤니티",
+                "url": f"{subject} 관련 온라인 커뮤니티나 포럼",
+                "priority": "medium"
+            },
+            {
+                "type": "reference",
+                "title": f"{subject} 최신 동향",
+                "url": f"{subject} 업계 뉴스와 트렌드 정보",
+                "priority": "medium"
+            }
+        ]
+
+    def _build_prompt(self, request: StudyPlanRequest) -> str:
+        """기존 호환성을 위한 프롬프트 (deprecated)"""
+        return self._build_universal_prompt(request)
 
     async def generate_summary(
             self,
