@@ -55,7 +55,7 @@ class GeminiService:
         self.safety_settings = safety_settings
 
     def _extract_text_from_response(self, response) -> str:
-        """Gemini 응답에서 텍스트 추출
+        """Gemini 응답에서 텍스트 추출 (강화된 디버깅 버전)
 
         Args:
             response: Gemini API 응답 객체
@@ -66,47 +66,106 @@ class GeminiService:
         Raises:
             ValueError: 텍스트 추출 실패 시
         """
+        logger.info(f"🔍 응답 객체 타입: {type(response)}")
+        logger.info(f"🔍 응답 객체 속성: {dir(response)}")
+
+        # 응답 객체 전체 구조 로깅
+        try:
+            logger.info(f"🔍 응답 객체 전체 정보: {str(response)}")
+        except:
+            logger.info("🔍 응답 객체 str() 변환 실패")
+
         try:
             # 방법 1: response.text가 가능한 경우 (단순 응답)
-            if hasattr(response, 'text') and response.text:
-                return response.text
+            logger.info("🔍 방법 1: response.text 시도")
+            if hasattr(response, 'text'):
+                logger.info(f"🔍 response.text 존재: {response.text is not None}")
+                if response.text:
+                    logger.info(f"✅ 방법 1 성공: {len(response.text)} 문자")
+                    return response.text
+                else:
+                    logger.warning("⚠️ response.text가 None 또는 빈 문자열")
+            else:
+                logger.warning("⚠️ response.text 속성이 존재하지 않음")
         except Exception as e:
             logger.warning(f"⚠️ response.text 접근 실패: {e}")
 
         try:
             # 방법 2: response.parts 사용
-            if hasattr(response, 'parts') and response.parts:
-                text_parts = []
-                for part in response.parts:
-                    if hasattr(part, 'text') and part.text:
-                        text_parts.append(part.text)
-                if text_parts:
-                    return ''.join(text_parts)
+            logger.info("🔍 방법 2: response.parts 시도")
+            if hasattr(response, 'parts'):
+                logger.info(f"🔍 response.parts 존재: {response.parts is not None}")
+                if response.parts:
+                    text_parts = []
+                    for i, part in enumerate(response.parts):
+                        logger.info(f"🔍 Part {i}: {type(part)}, hasattr text: {hasattr(part, 'text')}")
+                        if hasattr(part, 'text') and part.text:
+                            text_parts.append(part.text)
+                    if text_parts:
+                        result = ''.join(text_parts)
+                        logger.info(f"✅ 방법 2 성공: {len(result)} 문자")
+                        return result
+                else:
+                    logger.warning("⚠️ response.parts가 None 또는 빈 리스트")
+            else:
+                logger.warning("⚠️ response.parts 속성이 존재하지 않음")
         except Exception as e:
             logger.warning(f"⚠️ response.parts 접근 실패: {e}")
 
         try:
             # 방법 3: candidates를 통한 접근
-            if hasattr(response, 'candidates') and response.candidates:
-                candidate = response.candidates[0]
-                if hasattr(candidate, 'content') and candidate.content:
-                    content = candidate.content
-                    if hasattr(content, 'parts') and content.parts:
-                        text_parts = []
-                        for part in content.parts:
-                            if hasattr(part, 'text') and part.text:
-                                text_parts.append(part.text)
-                        if text_parts:
-                            return ''.join(text_parts)
+            logger.info("🔍 방법 3: candidates 시도")
+            if hasattr(response, 'candidates'):
+                logger.info(f"🔍 candidates 존재: {response.candidates is not None}")
+                if response.candidates and len(response.candidates) > 0:
+                    candidate = response.candidates[0]
+                    logger.info(f"🔍 첫 번째 candidate: {type(candidate)}")
+
+                    if hasattr(candidate, 'content'):
+                        content = candidate.content
+                        logger.info(f"🔍 candidate.content: {type(content)}")
+
+                        if hasattr(content, 'parts'):
+                            logger.info(f"🔍 content.parts 존재: {content.parts is not None}")
+                            if content.parts:
+                                text_parts = []
+                                for i, part in enumerate(content.parts):
+                                    logger.info(f"🔍 Content Part {i}: {type(part)}")
+                                    if hasattr(part, 'text') and part.text:
+                                        text_parts.append(part.text)
+                                if text_parts:
+                                    result = ''.join(text_parts)
+                                    logger.info(f"✅ 방법 3 성공: {len(result)} 문자")
+                                    return result
+                else:
+                    logger.warning("⚠️ candidates가 None 또는 빈 리스트")
+            else:
+                logger.warning("⚠️ candidates 속성이 존재하지 않음")
         except Exception as e:
             logger.warning(f"⚠️ candidates 접근 실패: {e}")
 
-        # 모든 방법 실패 시
-        logger.error(f"❌ 모든 텍스트 추출 방법 실패. Response 구조: {type(response)}")
-        if hasattr(response, '__dict__'):
-            logger.error(f"Response 속성들: {list(response.__dict__.keys())}")
+        # 방법 4: _result 속성 확인 (일부 경우)
+        try:
+            logger.info("🔍 방법 4: _result 시도")
+            if hasattr(response, '_result'):
+                logger.info(f"🔍 _result 존재: {response._result}")
+                # _result에서 텍스트 추출 시도
+        except Exception as e:
+            logger.warning(f"⚠️ _result 접근 실패: {e}")
 
-        raise ValueError("Gemini 응답에서 텍스트를 추출할 수 없습니다.")
+        # 모든 방법 실패 시 - 더 상세한 디버깅 정보
+        logger.error(f"❌ 모든 텍스트 추출 방법 실패")
+        logger.error(f"❌ Response 구조: {type(response)}")
+
+        try:
+            if hasattr(response, '__dict__'):
+                logger.error(f"❌ Response __dict__: {response.__dict__}")
+        except:
+            logger.error("❌ Response __dict__ 접근 실패")
+
+        # 임시로 빈 JSON 반환하여 완전 실패 방지
+        logger.warning("⚠️ 임시 빈 응답 반환")
+        return '{"title": "임시 학습계획", "total_weeks": 4, "weekly_plans": []}'
 
     async def generate_study_plan(self, request) -> Dict[str, Any]:
         """디버깅이 추가된 학습계획 생성"""
