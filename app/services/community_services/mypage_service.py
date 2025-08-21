@@ -15,21 +15,25 @@ async def service_list_my_posts(
         limit: int = 6
 ) -> Dict[str, Any]:
 
-    qs = PostModel.filter(user_id=user_id, is_active=True)
-    if category != "all":
-        qs = qs.filter(category=category)
+    qs = (
+        PostModel.filter(user_id=user_id, is_active=True)
+        .select_related("post", "post__user")
+    )
+    if category and category != "all":
+        qs = qs.filter(post__category=category)
     if cursor is not None:
         qs = qs.filter(id__lt=cursor)
     rows = await qs.order_by("-id").limit(limit)
 
     items = [{
-        "id": p.id,
-        "category": p.category,
-        "title": p.title,
-        "author_id": p.user_id,
-        "views": p.view_count,
-        "created_at":p.created_at,
-    } for p in rows]
+        "id": r.id,
+        "category": r.category,
+        "title": r.title,
+        "author_id": r.user_id,
+        "author_nickname": (r.post.user.nickname if getattr(r.post, "user", None) else None),
+        "views": r.view_count,
+        "created_at":r.created_at,
+    } for r in rows]
 
     return {
         "count": len(items),
@@ -39,38 +43,41 @@ async def service_list_my_posts(
 
 
 async def service_list_my_likes(
-        *,
-        user_id: int,
-        category: RequestCategory = "all",
-        cursor: Optional[int] = None,
-        limit: int = 6
+    *,
+    user_id: int,
+    category: RequestCategory = "all",
+    cursor: Optional[int] = None,
+    limit: int = 6
 ) -> Dict[str, Any]:
 
-    lq = LikeModel.filter(user_id=user_id)
+    lq = (
+        LikeModel
+        .filter(user_id=user_id, post__is_active=True)  # 글 비활성 제외를 미리
+        .select_related("post", "post__user")          # 조인으로 한 번에
+    )
+
     if category != "all":
-        lq = lq.filter(category=category)
+        lq = lq.filter(post__category=category)        # ← 관계 경유 필터
+
     if cursor is not None:
-        lq = lq.filter(id__lt=cursor)
+        lq = lq.filter(id__lt=cursor)                  # 커서는 like.id 기준
+
     likes = await lq.order_by("-id").limit(limit)
-
-    post_ids = [lk.post_id for lk in likes]
-    if not post_ids:
-        return {"count": 0, "next_cursor": None, "items": []}
-
-    posts = await PostModel.filter(id__in=post_ids, is_active=True)
-    post_map = {p.id: p for p in posts}
 
     items: List[Dict[str, Any]] = []
     for lk in likes:
-        p = post_map.get(lk.post_id)
+        p = getattr(lk, "post", None)
         if not p:
             continue
+        u = getattr(p, "user", None)
         items.append({
             "id": p.id,
             "category": p.category,
             "title": p.title,
             "author_id": p.user_id,
-            "created_at":p.created_at,
+            "author_nickname": (u.nickname if u else None),
+            "views": p.view_count,
+            "created_at": p.created_at,
             "liked_at": lk.created_at,
         })
 
