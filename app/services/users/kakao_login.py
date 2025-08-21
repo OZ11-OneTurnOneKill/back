@@ -4,6 +4,8 @@ kakao 소셜 로그인 구현 api service logic 관리 파일입니다.
 소셜 로그인 관련 라우터는 `apis/` 폴더에 작성했습니다.
 
 """
+from email.policy import default
+from urllib import request
 
 import requests
 from app.configs.base_config import Kakao, Google
@@ -26,7 +28,7 @@ async def create_authorization_url(request:Request, scope: Optional[str]) -> Red
     # 링크 생성
     scope_param = f'&scope={scope}' if scope else '' # 동의항목 설정
 
-    redirect_url = f'{kakao.KAUTH_HOST}/oauth/authorize?response_type=code&client_id={kakao.KAKAO_KEY}&redirect_uri={kakao.KAKAO_REDIRECT_URI}{scope_param}'
+    redirect_url = f'{kakao.KAUTH_HOST}/oauth/authorize?response_type=code&client_id={kakao.KAKAO_KEY}&redirect_uri={kakao.KAKAO_REDIRECT_URI}{scope_param}&prompt=login'
     print(f"""
     authorization_url : 
     {redirect_url}
@@ -113,7 +115,7 @@ async def revoke(request: Request, current_user: UserModel):
     """
     유저의 로그아웃 요청시, 세션과 쿠키에 저장된 데이터 무효화와 DB에 상태를 반영한다.
     - 세션 삭제 및 쿠키에 담겨진 데이터를 삭제.
-    - 구글 로그아웃 API 호출
+    - 카카오 로그아웃 API 호출
     - 설정한 url로 리디렉션 진행 (303)
         -> 따로 프론트에서 연결 진행함으로 리디렉션 제거
     :param request:
@@ -127,13 +129,16 @@ async def revoke(request: Request, current_user: UserModel):
     }
 
     # 카카오 로그아웃 API 요청 (POST)
-    req = requests.post(f'{kakao.KAPI_HOST}/v1/user/logout', headers=headers)
+    logout = requests.post(f'{kakao.KAPI_HOST}/v1/user/logout', headers=headers)
+    unlink = requests.post(f'{kakao.KAPI_HOST}/v1/user/unlink', headers=headers)
 
     request.session.clear() # session 삭제
 
     response = JSONResponse(
         {'msg' : '로그아웃 완료'}
     )
+    # response = RedirectResponse(kakao_.URL)
+
     response.delete_cookie(key='access_token', path='/', httponly=True, secure=kakao_.IS_SECURE, samesite=None, domain=kakao_.DOMAIN)
 
     await login.revoke_refresh(current_user)
