@@ -16,13 +16,17 @@ async def service_list_my_posts(
 ) -> Dict[str, Any]:
 
     qs = (
-        PostModel.filter(user_id=user_id, is_active=True)
-        .select_related("post", "post__user")
+        PostModel
+        .filter(user_id=user_id, is_active=True)
+        .select_related("user")              # ← 작성자 조인
     )
+
     if category and category != "all":
-        qs = qs.filter(post__category=category)
+        qs = qs.filter(category=category)    # ← Post 자체 필드이므로 'category'
+
     if cursor is not None:
         qs = qs.filter(id__lt=cursor)
+
     rows = await qs.order_by("-id").limit(limit)
 
     items = [{
