@@ -22,6 +22,8 @@ def to_study_response(p: PostModel) -> StudyPostResponse:
         author_id=p.user_id,
         author_nickname=getattr(getattr(p, "user", None), "nickname", None),
         views=p.view_count,
+        like_count=p.like_count,
+        comment_count=p.comment_count,
         study_recruitment=(
             StudyRecruitmentResponse(
                 recruit_start=sr.recruit_start,
@@ -56,6 +58,8 @@ async def to_free_response(post: PostModel) -> FreePostResponse:
         author_id=post.user_id,
         author_nickname=getattr(getattr(post, "user", None), "nickname", None),
         views=post.view_count,
+        like_count=post.like_count,
+        comment_count=post.comment_count,
         images=images,
         created_at=post.created_at,
         updated_at=post.updated_at,
@@ -79,6 +83,8 @@ async def to_share_response(p: PostModel) -> SharePostResponse:
         author_id=p.user_id,
         author_nickname=getattr(getattr(p, "user", None), "nickname", None),
         views=p.view_count,
+        like_count=p.like_count,
+        comment_count=p.comment_count,
         files=files,
         created_at=p.created_at,
         updated_at=p.updated_at,
