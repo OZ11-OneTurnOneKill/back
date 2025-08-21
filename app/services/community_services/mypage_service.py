@@ -1,13 +1,23 @@
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any, Dict, Literal
 from app.models.community import PostModel, LikeModel
 
+RequestCategory = Literal["all", "study", "free", "share"]
 
 def next_cursor_by_items(items: List[dict], key: str) -> Optional[int]:
     return items[-1][key] if items else None
 
 
-async def service_list_my_posts(*, user_id: int, cursor: Optional[int] = None, limit: int = 6) -> Dict[str, Any]:
+async def service_list_my_posts(
+        *,
+        user_id: int,
+        category: RequestCategory = "all",
+        cursor: Optional[int] = None,
+        limit: int = 6
+) -> Dict[str, Any]:
+
     qs = PostModel.filter(user_id=user_id, is_active=True)
+    if category != "all":
+        qs = qs.filter(category=category)
     if cursor is not None:
         qs = qs.filter(id__lt=cursor)
     rows = await qs.order_by("-id").limit(limit)
@@ -28,8 +38,17 @@ async def service_list_my_posts(*, user_id: int, cursor: Optional[int] = None, l
     }
 
 
-async def service_list_my_likes(*, user_id: int, cursor: Optional[int] = None, limit: int = 6) -> Dict[str, Any]:
+async def service_list_my_likes(
+        *,
+        user_id: int,
+        category: RequestCategory = "all",
+        cursor: Optional[int] = None,
+        limit: int = 6
+) -> Dict[str, Any]:
+
     lq = LikeModel.filter(user_id=user_id)
+    if category != "all":
+        lq = lq.filter(category=category)
     if cursor is not None:
         lq = lq.filter(id__lt=cursor)
     likes = await lq.order_by("-id").limit(limit)
