@@ -10,7 +10,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.dtos.users import User, GetMyInfo
 from app.models.user import UserModel
 from google.oauth2.credentials import Credentials
-from app.services.users.login import user_check, decode_token
+from app.services.users.login import decode_token
 
 
 async def get_current_user(request: Request):
