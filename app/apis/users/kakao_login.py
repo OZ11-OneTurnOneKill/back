@@ -80,7 +80,7 @@ async def get_profile_img(request: Request):
 
 
 @router.post('/logout')
-async def logout_kakao(request: Request, current_user: Annotated[UserModel, Depends(get_current_user)]):
+async def logout_kakao(request: Request, current_user: Annotated[UserModel, Depends(get_current_user)]) -> RedirectResponse:
     """
     유저가 로그아웃 요청시, 로그아웃 관련 로직들이 실행.
     response(revoke) : 세션 삭제 및 쿠키 삭제 후 지정한 url로 이동
