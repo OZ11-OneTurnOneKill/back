@@ -10,6 +10,7 @@ class PostSummary(BaseModel):
     category: PostCategory
     title: str
     author_id: int
+    author_nickname: Optional[str] = None
     views: int
     created_at: datetime
 

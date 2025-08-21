@@ -68,7 +68,7 @@ async def list_study_posts_cursor(
 @router.get("/post/study/{post_id:int}", response_model=StudyPostResponse)
 async def get_study_post(post_id: int):
     post = await PostModel.get_or_none(id=post_id, category=CategoryType.STUDY) \
-                          .select_related("study_recruitment")
+                          .select_related("study_recruitment", "user")
     if not post:
         raise HTTPException(404, "Post not found")
     await service_increment_view(post_id=post_id, category="study")
