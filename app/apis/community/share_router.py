@@ -23,7 +23,7 @@ from app.apis.community._state import KST, post_author_map, post_views
 
 router = APIRouter(prefix="/api/v1/community", tags=["Community · Share"])
 
-SearchIn = Literal["title", "content", "title_content"]
+SearchIn = Literal["title", "content", "title_content", "author"]
 
 @router.post("/post/share", response_model=SharePostResponse)
 async def create_share_post(body: SharePostRequest):

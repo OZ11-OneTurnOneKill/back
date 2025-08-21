@@ -8,12 +8,12 @@ from app.services.community_services.community_get_service import service_list_p
 
 router = APIRouter(prefix="/api/v1/community", tags=["Community · Post"])
 
-SearchIn = Literal["title", "content", "title_content"]
+SearchIn = Literal["title", "content", "title_content", "author"]
 
 @router.get("/post/all/list-cursor", response_model=CursorListResponse)
 async def list_all_posts_cursor(
     q: Optional[str] = Query(None),
-    search_in: SearchIn = Query("title_content", description="title | content | title_content"),
+    search_in: SearchIn = Query("title_content", description="title | content | title_content | author"),
     cursor: Optional[int] = Query(None),
     limit: int = Query(PAGE_SIZE, ge=1, le=50),
     author_id: Optional[int] = Query(None),

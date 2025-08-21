@@ -15,7 +15,7 @@ from app.models.community import (
 KST = timezone("Asia/Seoul")
 
 RequestCategory = Literal["all", "study", "free", "share"]
-SearchIn        = Literal["title", "content", "title_content"]
+SearchIn = Literal["title", "content", "title_content", "author"]
 
 
 def _make_next_cursor(items: List[dict]) -> Optional[int]:
@@ -66,6 +66,8 @@ async def service_list_posts_cursor(
             qs = qs.filter(title__icontains=q)
         elif search_in == "content":
             qs = qs.filter(content__icontains=q)
+        elif search_in == "author":
+            qs = qs.filter(user__nickname__icontains=q).select_related("user")
         else:  # "title_content"
             qs = qs.filter(Q(title__icontains=q) | Q(content__icontains=q))
 
@@ -78,6 +80,8 @@ async def service_list_posts_cursor(
     if date_to is not None:
         qs = qs.filter(created_at__lt=date_to)
 
+    qs = qs.select_related("user")
+
     posts = await qs.order_by("-id").limit(limit)
 
     # 2) 공통 요약 필드 구성
@@ -86,6 +90,7 @@ async def service_list_posts_cursor(
         "category": p.category,
         "title": p.title,
         "author_id": p.user_id,
+        "author_nickname": getattr(p, "user", None) and p.user.nickname,
         "views": p.view_count,
         "created_at": p.created_at,
     } for p in posts]
