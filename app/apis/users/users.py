@@ -5,8 +5,10 @@ from docutils.nodes import status
 from app.configs.base_config import Google
 from app.dtos.users import PatchNickname, UpdateToken
 from app.models.user import UserModel, RefreshTokenModel
+from app.services.users.google_login import revoke as google_logout
+from app.services.users.kakao_login import revoke as kakao_logout
 from app.services.users.login import decode_token, update_token
-from app.services.users.users import get_current_user, update_user
+from app.services.users.users import get_current_user, update_user, user_delete, revoke_google_token, unlink_kakao_user
 from fastapi import APIRouter, Depends, Request, Response, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -76,8 +78,25 @@ async def post_update_token(request: Request,
     return response
 
 @router.delete('/withdrawal')
-async def withdrawal():
-    pass
+async def withdrawal(request: Request, user=Depends(get_current_user)):
+    # 유저 데이터 삭제
+    await user_delete(request, user)
+
+    # 로그아웃 처리
+    if user.provider == 'KAKAO':
+        k_token = request.session.get('access_token')
+        await unlink_kakao_user(k_token)
+        await kakao_logout(request, user)
+    else: # google
+        g_token = request.session.get('credentials')
+        await revoke_google_token(g_token)
+        await google_logout(request, user)
+    # 쿠키 삭제
+    # response = RedirectResponse(google.URL)
+    response = JSONResponse('회원 탈퇴 완료')
+    response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None, domain=google.DOMAIN)
+
+    return response
 
 
 

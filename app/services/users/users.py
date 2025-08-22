@@ -3,16 +3,21 @@ from datetime import datetime, timezone
 
 import httpx
 import random
+from app.configs.base_config import Google
 from app.dtos.users import User, GetMyInfo
 from app.models.user import UserModel
 from google.oauth2.credentials import Credentials
 from app.services.users.login import decode_token
 
 from fastapi import Depends, HTTPException, status, Request
+from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from starlette.websockets import WebSocket
 from starlette.exceptions import WebSocketException
+
+
+logout = Google()
 
 async def get_current_user(request: Request):
     """
@@ -220,3 +225,46 @@ async def update_user(user, update_nickname):
     )
 
     return update_nickname
+
+
+async def user_delete(request, user):
+    """
+    회원탈퇴시, 관련된 모든 데이터를 삭제 및 로그아웃.
+    :param user: user
+    :return: 탈퇴 완료 메세지
+    """
+    # user check
+    user_data = await UserModel.filter(id=user.id).first()
+    print(f'유저 데이터 확인{user_data.id} : {user_data.nickname}, {user_data.email}')
+
+    await user_data.delete()
+
+    check_user = await UserModel.filter(id=user.id).first()
+    print(f"삭제 후 확인: {check_user}")
+
+    # 로그아웃 API 호출
+    # redirect_uri = f'{logout.URL}/api/v1/users/auth/{user_data.provider.name.lower()}/logout'
+
+    # UserModel.filter(id=user.id).delete()
+
+async def revoke_google_token(token: str):
+    """
+    회원탈퇴 시, 구글 소셜로그인 연동 해제 요청
+    :param token: token
+    """
+    url = "https://oauth2.googleapis.com/revoke"
+    params = {"token": token}
+    async with httpx.AsyncClient() as client:
+        res = await client.post(url, params=params)
+        return res.status_code
+
+async def unlink_kakao_user(token: str):
+    """
+    회원탈퇴 시, 카카오 소셜로그인 연동 해제 요청
+    :param access_token:
+    """
+    url = "https://kapi.kakao.com/v1/user/unlink"
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient() as client:
+        res = await client.post(url, headers=headers)
+        return res.json()
