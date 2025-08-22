@@ -4,6 +4,7 @@ from typing import Optional, Literal
 from fastapi import APIRouter, HTTPException, Depends, Query
 from tortoise.exceptions import DoesNotExist
 from app.core.constants import PAGE_SIZE
+from app.core.dev_auth import current_user_dev
 from app.dtos.community_dtos.Community_list_response import CursorListResponse
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import (
@@ -76,9 +77,10 @@ async def get_study_post(post_id: int):
 
 @router.patch("/post/study/{post_id}", response_model=StudyPostResponse)
 async def patch_study_post(
+    user:int,
     post_id: int,
     body: StudyPostUpdateRequest,
-    current_user = Depends(get_current_user)
+    # current_user = Depends(current_user_dev)
 ):
     # 1) 실제로 보낸 필드만 추출 (부분 업데이트)
     payload = body.model_dump(exclude_unset=True)  # 필요 시 exclude_none=True도 추가 가능
@@ -91,7 +93,7 @@ async def patch_study_post(
     try:
         return await service_update_study_post(
             post_id=post_id,
-            user_id=current_user.id,  # 가짜 인증 헤더 X-User-Id에서 주입
+            user_id=user.id,  # 가짜 인증 헤더 X-User-Id에서 주입
             **payload
         )
     except DoesNotExist:
@@ -100,13 +102,13 @@ async def patch_study_post(
 
 
 @router.post("/post/{post_id}/study-application", response_model=ApplicationResponse)
-async def apply_to_study(post_id: int, body: ApplicationCreateRequest, current_user=Depends(get_current_user)):
-    return await service_apply_to_study(post_id=post_id, user_id=current_user.id, message=body.message)
+async def apply_to_study(post_id: int, body: ApplicationCreateRequest, user: int):   #current_user=Depends(current_user_dev)
+    return await service_apply_to_study(post_id=post_id, user_id=user.id, message=body.message)
 
 @router.post("/study-application/{application_id}/approve", response_model=ApplicationResponse)
-async def approve_application(application_id: int, current_user=Depends(get_current_user)):
-    return await service_approve_application(application_id=application_id, owner_id=current_user.id)
+async def approve_application(application_id: int, user: int):
+    return await service_approve_application(application_id=application_id, owner_id=user.id)
 
 @router.post("/study-application/{application_id}/reject", response_model=ApplicationResponse)
-async def reject_application(application_id: int, current_user=Depends(get_current_user)):
-    return await service_reject_application(application_id=application_id, owner_id=current_user.id)
+async def reject_application(application_id: int, user: int):
+    return await service_reject_application(application_id=application_id, owner_id=user.id)
