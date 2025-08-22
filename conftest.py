@@ -5,7 +5,7 @@ import json
 import asyncio
 from app import app   # FastAPI 앱 (app/__init__.py 에 있는 app)
 from tortoise.contrib.test import initializer, finalizer
-from app.apis.community.common_router import post_views
+from app.apis.community.like_router import post_views
 from unittest.mock import Mock, AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta
 from typing import Dict, Any, List

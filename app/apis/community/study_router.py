@@ -8,8 +8,6 @@ from app.core.dev_auth import current_user_dev
 from app.dtos.community_dtos.Community_list_response import CursorListResponse
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import (
-    StudyPostRequest,
-    StudyPostUpdateRequest,
     ApplicationResponse,
     ApplicationCreateRequest
 )
@@ -30,85 +28,85 @@ router = APIRouter(prefix="/api/v1/community", tags=["Community · Study"])
 
 SearchIn = Literal["title", "content", "title_content", "author"]
 
-@router.post("/post/study", response_model=StudyPostResponse)
-async def create_study_post(body: StudyPostRequest):
-    try:
-        return await post_svc.service_create_study_post(
-            user_id=body.user_id,
-            title=body.title,
-            content=body.content,
-            recruit_start=body.recruit_start,
-            recruit_end=body.recruit_end,
-            study_start=body.study_start,
-            study_end=body.study_end,
-            max_member=body.max_member,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+# @router.post("/post/study", response_model=StudyPostResponse)
+# async def create_study_post(body: StudyPostRequest):
+#     try:
+#         return await post_svc.service_create_study_post(
+#             user_id=body.user_id,
+#             title=body.title,
+#             content=body.content,
+#             recruit_start=body.recruit_start,
+#             recruit_end=body.recruit_end,
+#             study_start=body.study_start,
+#             study_end=body.study_end,
+#             max_member=body.max_member,
+#         )
+#     except Exception as e:
+#         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/post/study/list-cursor", response_model=CursorListResponse)
-async def list_study_posts_cursor(
-    q: Optional[str] = Query(None),
-    search_in: SearchIn = Query("title_content"),
-    cursor: Optional[int] = Query(None),
-    limit: int = Query(PAGE_SIZE, ge=1, le=50),
-    author_id: Optional[int] = Query(None),
-    date_from: Optional[datetime] = Query(None),
-    date_to: Optional[datetime] = Query(None),
-    badge: Optional[Literal["모집중","모집완료"]] = Query(None),
-):
-    return await service_list_posts_cursor(
-        category="study",
-        q=q, search_in=search_in,
-        cursor=cursor, limit=limit,
-        author_id=author_id, date_from=date_from, date_to=date_to,
-        badge=badge,
-    )
+# @router.get("/post/study/list-cursor", response_model=CursorListResponse)
+# async def list_study_posts_cursor(
+#     q: Optional[str] = Query(None),
+#     search_in: SearchIn = Query("title_content"),
+#     cursor: Optional[int] = Query(None),
+#     limit: int = Query(PAGE_SIZE, ge=1, le=50),
+#     author_id: Optional[int] = Query(None),
+#     date_from: Optional[datetime] = Query(None),
+#     date_to: Optional[datetime] = Query(None),
+#     badge: Optional[Literal["모집중","모집완료"]] = Query(None),
+# ):
+#     return await service_list_posts_cursor(
+#         category="study",
+#         q=q, search_in=search_in,
+#         cursor=cursor, limit=limit,
+#         author_id=author_id, date_from=date_from, date_to=date_to,
+#         badge=badge,
+#     )
 
 
-@router.get("/post/study/{post_id:int}", response_model=StudyPostResponse)
-async def get_study_post(post_id: int):
-    post = await PostModel.get_or_none(id=post_id, category=CategoryType.STUDY) \
-                          .select_related("study_recruitment", "user")
-    if not post:
-        raise HTTPException(404, "Post not found")
-    await service_increment_view(post_id=post_id, category="study")
-    return to_study_response(post)
+# @router.get("/post/study/{post_id:int}", response_model=StudyPostResponse)
+# async def get_study_post(post_id: int):
+#     post = await PostModel.get_or_none(id=post_id, category=CategoryType.STUDY) \
+#                           .select_related("study_recruitment", "user")
+#     if not post:
+#         raise HTTPException(404, "Post not found")
+#     await service_increment_view(post_id=post_id, category="study")
+#     return to_study_response(post)
 
-@router.patch("/post/study/{post_id}", response_model=StudyPostResponse)
-async def patch_study_post(
-    user:int,
-    post_id: int,
-    body: StudyPostUpdateRequest,
-    # current_user = Depends(current_user_dev)
-):
-    # 1) 실제로 보낸 필드만 추출 (부분 업데이트)
-    payload = body.model_dump(exclude_unset=True)  # 필요 시 exclude_none=True도 추가 가능
-
-    # 2) 빈 PATCH 방지
-    if not payload:
-        raise HTTPException(status_code=400, detail="No fields to update")
-
-    # 3) 서비스 호출 (post_id + user_id는 항상 전달, 변경 필드는 **payload로 한 번에)
-    try:
-        return await service_update_study_post(
-            post_id=post_id,
-            user_id=user.id,  # 가짜 인증 헤더 X-User-Id에서 주입
-            **payload
-        )
-    except DoesNotExist:
-        # 서비스 내부에서 DoesNotExist가 그대로 올라오는 경우 대비
-        raise HTTPException(status_code=404, detail="Post not found")
+# @router.patch("/post/study/{post_id}", response_model=StudyPostResponse)
+# async def patch_study_post(
+#     user:int,
+#     post_id: int,
+#     body: StudyPostUpdateRequest,
+#     # current_user = Depends(current_user_dev)
+# ):
+#     # 1) 실제로 보낸 필드만 추출 (부분 업데이트)
+#     payload = body.model_dump(exclude_unset=True)  # 필요 시 exclude_none=True도 추가 가능
+#
+#     # 2) 빈 PATCH 방지
+#     if not payload:
+#         raise HTTPException(status_code=400, detail="No fields to update")
+#
+#     # 3) 서비스 호출 (post_id + user_id는 항상 전달, 변경 필드는 **payload로 한 번에)
+#     try:
+#         return await service_update_study_post(
+#             post_id=post_id,
+#             user_id=user,  # 가짜 인증 헤더 X-User-Id에서 주입
+#             **payload
+#         )
+#     except DoesNotExist:
+#         # 서비스 내부에서 DoesNotExist가 그대로 올라오는 경우 대비
+#         raise HTTPException(status_code=404, detail="Post not found")
 
 
 @router.post("/post/{post_id}/study-application", response_model=ApplicationResponse)
 async def apply_to_study(post_id: int, body: ApplicationCreateRequest, user: int):   #current_user=Depends(current_user_dev)
-    return await service_apply_to_study(post_id=post_id, user_id=user.id, message=body.message)
+    return await service_apply_to_study(post_id=post_id, user_id=user, message=body.message)
 
 @router.post("/study-application/{application_id}/approve", response_model=ApplicationResponse)
 async def approve_application(application_id: int, user: int):
-    return await service_approve_application(application_id=application_id, owner_id=user.id)
+    return await service_approve_application(application_id=application_id, owner_id=user)
 
 @router.post("/study-application/{application_id}/reject", response_model=ApplicationResponse)
 async def reject_application(application_id: int, user: int):
-    return await service_reject_application(application_id=application_id, owner_id=user.id)
+    return await service_reject_application(application_id=application_id, owner_id=user)

@@ -1,6 +1,10 @@
-from typing import Optional, List
-from pydantic import BaseModel
+from typing import Optional, List, Literal, Annotated, Union
+from pydantic import BaseModel, Field
 from datetime import datetime
+# === 공통 ===
+StudyLiteral = Literal["study"]
+FreeLiteral  = Literal["free"]
+ShareLiteral = Literal["share"]
 
 # ----- 첨부 스키마 -----
 class FreeImageOut(BaseModel):
@@ -29,7 +33,7 @@ class StudyPostResponse(BaseModel):
     id: int
     title: str
     content: str
-    category: str
+    category: StudyLiteral
     author_id: int
     author_nickname: Optional[str] = None
     views: int
@@ -44,7 +48,7 @@ class FreePostResponse(BaseModel):
     id: int
     title: str
     content: str
-    category: str
+    category: FreeLiteral
     author_id: int
     author_nickname: Optional[str] = None
     views: int
@@ -59,7 +63,7 @@ class SharePostResponse(BaseModel):
     id: int
     title: str
     content: str
-    category: str
+    category: ShareLiteral
     author_id: int
     author_nickname: Optional[str] = None
     views: int
@@ -84,3 +88,8 @@ class CommentListResponse(BaseModel):
     total: int
     count: int
     items: list[CommentResponse]
+
+PostDetailResponse = Annotated[
+    Union[StudyPostResponse, FreePostResponse, SharePostResponse],
+    Field(discriminator="category")
+]

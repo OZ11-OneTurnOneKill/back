@@ -18,7 +18,7 @@ def to_study_response(p: PostModel) -> StudyPostResponse:
         id=p.id,
         title=p.title,
         content=p.content,
-        category=p.category,
+        category="study",
         author_id=p.user_id,
         author_nickname=getattr(getattr(p, "user", None), "nickname", None),
         views=p.view_count,
@@ -37,7 +37,7 @@ def to_study_response(p: PostModel) -> StudyPostResponse:
         updated_at=p.updated_at,
     )
 
-async def to_free_response(post: PostModel) -> FreePostResponse:
+async def to_free_response(p: PostModel) -> FreePostResponse:
     """
     PostModel(+ user, + free_images) -> FreePostResponse
     - 라우터에서: .prefetch_related("free_images").select_related("user") 권장
@@ -45,24 +45,24 @@ async def to_free_response(post: PostModel) -> FreePostResponse:
     """
     # 작성자 닉네임 접근 위해 user 프리로드가 가장 좋음
     # (안 되어 있어도 getattr로 안전하게 처리)
-    rows = await post.free_images.all().order_by("-id").values(
+    rows = await p.free_images.all().order_by("-id").values(
         "id", "image_url", "mime_type", "size_bytes", "created_at"
     )
     images = [FreeImageOut(**r) for r in rows]
 
     return FreePostResponse(
-        id=post.id,
-        title=post.title,
-        content=post.content,
+        id=p.id,
+        title=p.title,
+        content=p.content,
         category="free",
-        author_id=post.user_id,
-        author_nickname=getattr(getattr(post, "user", None), "nickname", None),
-        views=post.view_count,
-        like_count=post.like_count,
-        comment_count=post.comment_count,
+        author_id=p.user_id,
+        author_nickname=getattr(getattr(p, "user", None), "nickname", None),
+        views=p.view_count,
+        like_count=p.like_count,
+        comment_count=p.comment_count,
         images=images,
-        created_at=post.created_at,
-        updated_at=post.updated_at,
+        created_at=p.created_at,
+        updated_at=p.updated_at,
     )
 
 async def to_share_response(p: PostModel) -> SharePostResponse:

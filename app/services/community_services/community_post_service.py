@@ -34,6 +34,8 @@ async def service_compose_study_response(post: PostModel, sr: StudyRecruitmentMo
         "author_id": getattr(post, "user_id"),
         "author_nickname": getattr(getattr(post, "user", None), "nickname", None),
         "views": post.view_count,
+        "like_count": post.like_count,
+        "comment_count": post.comment_count,
         "study_recruitment": {
             "recruit_start": sr.recruit_start,
             "recruit_end": sr.recruit_end,
@@ -163,29 +165,29 @@ async def service_create_share_post(*, user_id: int, title: str, content: str) -
 
 
 # ---------- 조회(Read) + 조회수 증가 ----------
-async def get_study_post_and_incr_views(post_id: int) -> dict:
-    async with in_transaction() as tx:
-        post = await PostModel.get(id=post_id, category="study").using_db(tx)
-        await PostModel.filter(id=post_id).using_db(tx).update(view_count=post.view_count + 1)
-        post = await PostModel.get(id=post_id).select_related("user").using_db(tx)  # ← user 프리패치
-        sr = await StudyRecruitmentModel.get(post_id=post_id).using_db(tx)
-    return await service_compose_study_response(post, sr)
-
-
-async def get_free_post_and_incr_views(post_id: int) -> dict:
-    async with in_transaction() as tx:
-        post = await PostModel.get(id=post_id, category="free").using_db(tx)
-        await PostModel.filter(id=post_id).using_db(tx).update(view_count=post.view_count + 1)
-        post = await PostModel.get(id=post_id).select_related("user").using_db(tx)   # ← 추가
-    return await service_compose_free_response(post)
-
-
-async def get_share_post_and_incr_views(post_id: int) -> dict:
-    async with in_transaction() as tx:
-        post = await PostModel.get(id=post_id, category="share").using_db(tx)
-        await PostModel.filter(id=post_id).using_db(tx).update(view_count=post.view_count + 1)
-        post = await PostModel.get(id=post_id).select_related("user").using_db(tx)   # ← 추가
-    return await service_compose_share_response(post)
+# async def get_study_post_and_incr_views(post_id: int) -> dict:
+#     async with in_transaction() as tx:
+#         post = await PostModel.get(id=post_id, category="study").using_db(tx)
+#         await PostModel.filter(id=post_id).using_db(tx).update(view_count=post.view_count + 1)
+#         post = await PostModel.get(id=post_id).select_related("user").using_db(tx)  # ← user 프리패치
+#         sr = await StudyRecruitmentModel.get(post_id=post_id).using_db(tx)
+#     return await service_compose_study_response(post, sr)
+#
+#
+# async def get_free_post_and_incr_views(post_id: int) -> dict:
+#     async with in_transaction() as tx:
+#         post = await PostModel.get(id=post_id, category="free").using_db(tx)
+#         await PostModel.filter(id=post_id).using_db(tx).update(view_count=post.view_count + 1)
+#         post = await PostModel.get(id=post_id).select_related("user").using_db(tx)   # ← 추가
+#     return await service_compose_free_response(post)
+#
+#
+# async def get_share_post_and_incr_views(post_id: int) -> dict:
+#     async with in_transaction() as tx:
+#         post = await PostModel.get(id=post_id, category="share").using_db(tx)
+#         await PostModel.filter(id=post_id).using_db(tx).update(view_count=post.view_count + 1)
+#         post = await PostModel.get(id=post_id).select_related("user").using_db(tx)   # ← 추가
+#     return await service_compose_share_response(post)
 
 
 async def service_update_study_post(
