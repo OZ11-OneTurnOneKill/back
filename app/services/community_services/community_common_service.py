@@ -22,7 +22,7 @@ def _val(x):
 
 async def service_get_like_info(*, post_id: int, user_id: Optional[int] = None) -> dict:
     post = await (
-        PostModel.get_or_none(id=post_id, deleted_at__isnull=True)
+        PostModel.get_or_none(id=post_id, is_active=True)
         .only("id", "category", "like_count")
     )
     if not post:
