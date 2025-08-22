@@ -87,38 +87,34 @@ async def get_current_websocket(websocket: WebSocket) -> UserModel:
     웹소켓 연결 시 쿠키의 JWT를 통해 유저를 검증한다..
     기존 get_current_user와 독립적으로 동작
     """
-    try:
-        token = websocket.cookies.get("access_token") # 웹소켓 객체에서 쿠키 토큰을 가져옴
-        if not token: # 토큰이 없을 때
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='access token을 조회할 수 없습니다.'
-            )
-
-        payload = decode_token(token) # 토큰 디코딩
-        if not payload:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="유효하지 않은 access token 입니다."
-            )
-
-        user_id = payload.get('sub') # payload에서 유저 ID를 추출, DB에서 유저 조회.
-        user = await UserModel.get_or_none(id=user_id)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='access token에 유저 정보가 없습니다.'
-            )
-
-        return user # 유저정보 반환
-
-    except HTTPException as e:
-        # 위 로직에서 발생한 모든 HTTPException을 여기서 잡습니다.
-        # 그리고 웹소켓 연결을 거부하기 위해 WebSocketException을 발생시킵니다.
+    # 1) 정상 경로: 쿠키에서 access_token 읽기
+    token = websocket.cookies.get("access_token")
+    if not token:
         raise WebSocketException(
-            code=status.WS_1008_POLICY_VIOLATION,
-            reason=e.detail  # 기존 에러 메시지를 reason으로 전달
+            code=1008,  # 또는: status.WS_1008_POLICY_VIOLATION (환경에 따라 없을 수 있어요)
+            reason="access token을 조회할 수 없습니다."
         )
+
+        # 4) 토큰 검증
+    try:
+        payload = decode_token(token)
+    except Exception:
+        raise WebSocketException(code=1008, reason="토큰 디코딩 실패")
+
+    if not payload:
+        raise WebSocketException(code=1008, reason="유효하지 않은 access token 입니다.")
+
+    user_id = payload.get("sub")
+    try:
+        user_id = int(user_id)
+    except Exception:
+        raise WebSocketException(code=1008, reason="토큰의 sub가 잘못되었습니다.")
+
+    user = await UserModel.get_or_none(id=user_id)
+    if not user:
+        raise WebSocketException(code=1008, reason="access token에 유저 정보가 없습니다.")
+
+    return user
 
 
 async def get_or_create_google(user_info):

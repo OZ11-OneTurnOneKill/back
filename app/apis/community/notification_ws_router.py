@@ -1,41 +1,39 @@
-from fastapi import APIRouter, WebSocket, Query, HTTPException
+from fastapi import APIRouter, WebSocket, Query, HTTPException, Depends
 from starlette.websockets import WebSocketDisconnect
 from tortoise.expressions import Q
 from app.core.realtime import notification_broker
 from app.models.community import NotificationModel
+from app.models.user import UserModel
 from app.services.users.users import get_current_websocket
 
 router = APIRouter(prefix="/api/v1/community", tags=["notification_WebSocket"])
 
 @router.websocket("/ws/notifications")
-async def ws_notifications(websocket: WebSocket):
-    # 1) 인증 (핸드셰이크 전에 쿠키 확인)
+async def ws_notifications(websocket: WebSocket,
+                           user: UserModel = Depends(get_current_websocket),):
+    # 쿼리 파라미터 preload 파싱 (인증 성공한 다음에 accept)
+    preload = websocket.query_params.get("preload", "10")
     try:
-        user = await get_current_websocket(websocket)
-    except WebSocketDisconnect:
-        return
-
-    # 2) preload 파라미터 파싱 (기본 10, 상한 100)
-    preload_raw = websocket.query_params.get("preload", "10")
-    try:
-        preload_n = max(0, min(100, int(preload_raw)))
+        preload_n = max(0, min(100, int(preload)))
     except ValueError:
-        await websocket.close(code=1008)  # Policy violation
+        await websocket.close(code=1008)
         return
 
-    # 3) 핸드셰이크 수락 및 브로커 등록
-    await websocket.accept()  # ✨ 브로커가 accept를 내부에서 하지 않는다면 반드시 필요
-    await notification_broker.connect(user.id, websocket)
+    # 핸드셰이크 수락
+    await websocket.accept()
 
-    # 4) 접속 직후 최근 알림 선전송(오래된 것부터)
+    user_id = user.id
+    await notification_broker.connect(user_id, websocket)
+
+    # 과거 알림 선전송 (오래된 것부터)
     recent = await (
         NotificationModel
-        .filter(user_id=user.id)
+        .filter(user_id=user_id)
         .order_by("-id")
         .limit(preload_n)
     )
     for n in reversed(recent):
-        await notification_broker.push(user.id, {
+        await notification_broker.push(user_id, {
             "id": n.id,
             "application_id": n.application_id,
             "message": n.message,
@@ -43,11 +41,10 @@ async def ws_notifications(websocket: WebSocket):
             "created_at": n.created_at,
         })
 
-    # 5) 연결 유지 (클라이언트 ping 대용 텍스트 수신)
     try:
         while True:
-            await websocket.receive_text()
+            await websocket.receive_text()  # 클라 ping 용도로 아무거나 보내도 OK
     except WebSocketDisconnect:
         pass
     finally:
-        notification_broker.disconnect(user.id, websocket)
+        notification_broker.disconnect(user_id, websocket)
