@@ -5,8 +5,8 @@ from typing import Optional
 from datetime import datetime
 
 class ProviderType(str, Enum):
-    GOOGLE = "google"
-    KAKAO = "kakao"
+    google = "google"
+    kakao = "kakao"
 
 class User(BaseModel):
     social_account : int # SocialAccountModel FK
