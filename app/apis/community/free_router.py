@@ -6,6 +6,7 @@ from tortoise.exceptions import DoesNotExist
 from app.core import s3
 from app.core.constants import PAGE_SIZE
 from app.core.attach_limits import IMAGE_MIMES, IMAGE_EXTS, MAX_TOTAL_BYTES_PER_POST
+from app.core.dev_auth import current_user_dev
 from app.dtos.community_dtos.Community_list_response import CursorListResponse
 from app.dtos.community_dtos.attachments import PresignResp, PresignReq, AttachReq
 from app.models.community import PostModel, CategoryType
@@ -79,9 +80,10 @@ async def get_free_post(post_id: int):
 
 @router.patch("/post/free/{post_id}", response_model=FreePostResponse)
 async def patch_free_post(
+    user: int,
     post_id: int,
     body: FreePostUpdateRequest,
-    current_user = Depends(get_current_user),
+    # current_user = Depends(current_user_dev),
 ):
     payload = body.model_dump(exclude_unset=True)  # 안 보낸 필드 제외(=부분 업데이트)
     if not payload:
@@ -89,7 +91,7 @@ async def patch_free_post(
     try:
         return await service_update_free_post(
             post_id=post_id,
-            user_id=current_user.id,
+            user_id=user.id,
             **payload              # ← 보낸 것만 서비스로 전달
         )
     except DoesNotExist:
@@ -101,9 +103,10 @@ def _ext_of(name: str) -> str:
 
 @router.post("/post/free/{post_id}/attachments/presigned", response_model=PresignResp)
 async def presign_free_image(
+    user: int,
     post_id: int,
     body: PresignReq,
-    user = Depends(get_current_user),
+    # user = Depends(current_user_dev),
 ):
     post = await PostModel.get_or_none(id=post_id, category=CategoryType.FREE)
     if not post:
@@ -122,9 +125,9 @@ async def presign_free_image(
 
 
 @router.post("/post/free/{post_id}/attachments/attach")
-async def attach_free_image_api(post_id: int, body: AttachReq, user = Depends(get_current_user)):
+async def attach_free_image_api(post_id: int, body: AttachReq, user : int):   #user = Depends(current_user_dev)
     return await attach_free_image(post_id=post_id, user_id=user.id, key=body.key)
 
 @router.delete("/post/free/{post_id}/attachments/{image_id}")
-async def delete_free_image_api(post_id: int, image_id: int, user = Depends(get_current_user)):
+async def delete_free_image_api(post_id: int, image_id: int, user : int):   #user = Depends(current_user_dev)
     return await delete_free_image(post_id=post_id, user_id=user.id, image_id=image_id)
