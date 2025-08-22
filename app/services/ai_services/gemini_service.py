@@ -502,6 +502,7 @@ class GeminiService:
             "total_weeks": weeks,
             "difficulty": duration_info['difficulty'],
             "estimated_total_hours": duration_info['recommended_hours'],
+            "challenge_mode": is_challenge,  # 🔥 추가
             "description": f"{core_subject} 분야의 {duration_info['characteristics']} 학습을 통해 {analysis['purpose']} 달성",
             "subject_analysis": {
                 "field_type": analysis['field_type'],
@@ -534,7 +535,9 @@ class GeminiService:
 
         # 주차별 계획 동적 생성 (핵심 주제 사용)
         for week in range(1, weeks + 1):
-            week_plan = self._generate_adaptive_week_plan(week, weeks, core_subject, analysis, duration_info)
+            week_plan = self._generate_adaptive_week_plan(
+                week, weeks, core_subject, analysis, duration_info, is_challenge  # is_challenge 전달
+            )
             plan["weekly_plans"].append(week_plan)
 
         # 마일스톤 동적 생성 (핵심 주제 사용)
@@ -551,9 +554,10 @@ class GeminiService:
             total_weeks: int,
             subject: str,
             analysis: Dict[str, Any],
-            duration_info: Dict[str, Any]
+            duration_info: Dict[str, Any],
+            is_challenge = False
     ) -> Dict[str, Any]:
-        """적응형 주차별 계획 생성"""
+        """적응형 주차별 상세 계획 생성 (고품질)"""
 
         # 진행률 기반 단계 결정
         progress = week / total_weeks
@@ -563,53 +567,137 @@ class GeminiService:
             stage_en = "Foundation"
             difficulty = "beginner"
             focus = "개념 이해와 기본기 다지기"
+            intensity = "medium"
         elif progress <= 0.5:
             stage = "응용"
             stage_en = "Application"
             difficulty = "intermediate"
             focus = "실무 기법과 응용 능력"
+            intensity = "medium"
         elif progress <= 0.75:
             stage = "심화"
             stage_en = "Advanced"
             difficulty = "intermediate"
             focus = "고급 기법과 전문성"
+            intensity = "high"
         else:
             stage = "완성"
             stage_en = "Mastery"
             difficulty = "advanced"
             focus = "통합과 실전 적용"
+            intensity = "high"
 
         # 분야별 맞춤 주제 생성
         topics = self._generate_stage_topics(stage, subject, analysis)
 
-        # 일별 목표 동적 생성
-        daily_goals = self._generate_daily_goals(week, stage, subject)
+        # 매우 구체적인 일별 목표 생성
+        daily_goals = self._generate_detailed_daily_goals(week, stage, subject, analysis)
 
-        # 목표 및 과제 생성 (완전 범용)
+        # 실전 프로젝트 과제 생성
+        challenge_tasks = self._generate_challenge_tasks(stage, subject, analysis)
+
+        # 체크포인트 생성
+        checkpoints = self._generate_checkpoints(stage, subject, analysis)
+
+        # 목표 생성
         goals = [
             f"{subject} {stage} 단계 핵심 개념 완전 이해",
             f"{focus}을 통한 실무 역량 개발",
-            f"다음 단계 진행을 위한 견고한 기반 구축"
+            f"실제 프로젝트 완성을 통한 성취감 확보"
         ]
 
-        # 완전 범용 과제 생성
-        assignments = [
-            f"{stage} 수준의 {subject} 실습 과제 완성",
-            f"{subject} 관련 미니 프로젝트 수행",
-            f"{week}주차 학습 성과 정리 및 발표 준비"
-        ]
-
-        return {
+        week_plan = {
             "week": week,
-            "title": f"{week}주차: {subject} {stage} 마스터",
-            "theme": f"{stage_en} & {focus}",
+            "title": f"{week}주차: {subject} {stage} 완성 및 프로젝트",
             "topics": topics,
-            "daily_goals": daily_goals,
             "goals": goals,
-            "assignments": assignments,
+            "daily_goals": daily_goals,
+            "checkpoints": checkpoints,
             "estimated_hours": duration_info['recommended_hours'] // total_weeks,
-            "difficulty_level": difficulty
+            "intensity": intensity
         }
+
+        # 챌린지 모드일 때만 도전과제 추가
+        if is_challenge:
+            challenge_tasks = self._generate_challenge_tasks(stage, subject, analysis)
+            week_plan["challenge_tasks"] = challenge_tasks
+
+        return week_plan
+
+    def _generate_detailed_daily_goals(self, week: int, stage: str, subject: str, analysis: Dict[str, Any]) -> List[
+        str]:
+        """매우 구체적인 일별 목표 생성"""
+
+        keywords = analysis.get('keywords', [])
+        main_keyword = keywords[0] if keywords else subject
+
+        return [
+            f"1일차: {subject} {stage} 단계 전체 개요 파악, 학습 환경 구축, 첫 번째 '{main_keyword}' 기초 실습 완성",
+            f"2일차: {main_keyword} 핵심 개념 첫 번째 그룹 완전 이해, 기본 도구 사용법 마스터, 간단한 예제 따라하기",
+            f"3일차: {main_keyword} 핵심 개념 두 번째 그룹 학습, 실습 프로젝트 기획 및 시작, 기본 구조 만들기",
+            f"4일차: 실습 프로젝트 핵심 기능 구현, {stage} 수준의 기법 적용, 중간 결과물 확인",
+            f"5일차: 프로젝트 완성 및 테스트, 추가 기능 구현, 오류 수정 및 개선",
+            f"6일차: 다양한 {main_keyword} 응용 예제 풀이, 창의적 활용법 연습, 심화 기능 탐색",
+            f"7일차: {week}주차 종합 복습, {stage} 단계 마스터 확인, 다음 주 준비 및 목표 설정"
+        ]
+
+    def _generate_challenge_tasks(self, stage: str, subject: str, analysis: Dict[str, Any]) -> List[str]:
+        """실전 도전 과제 생성"""
+
+        keywords = analysis.get('keywords', [])
+        main_keyword = keywords[0] if keywords else subject
+        field_type = analysis.get('field_type', '일반')
+
+        if stage == "기초":
+            return [
+                f"도전 과제 1: {main_keyword} 기본 개념을 활용한 실용적 미니 도구 만들기 (예: 계산기, 변환기, 간단한 관리 프로그램)",
+                f"도전 과제 2: 학습한 {subject} 기초 기능들을 조합한 창의적 응용 프로젝트 완성"
+            ]
+        elif stage == "응용":
+            return [
+                f"도전 과제 1: {main_keyword} 중급 기법을 활용한 실무형 프로젝트 (예: 데이터 처리 도구, 자동화 시스템)",
+                f"도전 과제 2: {subject} 관련 실제 문제를 해결하는 솔루션 개발 및 테스트"
+            ]
+        elif stage == "심화":
+            return [
+                f"도전 과제 1: {main_keyword} 고급 기법을 활용한 전문가 수준 프로젝트 구현",
+                f"도전 과제 2: 복합적 기능을 가진 {subject} 관련 종합 시스템 설계 및 개발"
+            ]
+        else:  # 완성
+            return [
+                f"도전 과제 1: {subject} 전문 지식을 종합한 포트폴리오급 최종 프로젝트 완성",
+                f"도전 과제 2: 실무에서 사용할 수 있는 수준의 {main_keyword} 기반 애플리케이션 개발"
+            ]
+
+    def _generate_checkpoints(self, stage: str, subject: str, analysis: Dict[str, Any]) -> List[str]:
+        """구체적 체크포인트 생성"""
+
+        main_keyword = analysis.get('keywords', [subject])[0] if analysis.get('keywords') else subject
+
+        if stage == "기초":
+            return [
+                f"{subject} 기본 개념 퀴즈 85% 이상 정답",
+                f"주어진 {main_keyword} 기초 실습 과제를 30분 내 완성",
+                f"첫 번째 미니 프로젝트를 다른 사람에게 명확히 설명 가능"
+            ]
+        elif stage == "응용":
+            return [
+                f"{subject} 중급 개념 실습 테스트 90% 이상 정답",
+                f"실무형 {main_keyword} 프로젝트를 45분 내 완성",
+                f"응용 프로젝트의 핵심 기능과 작동 원리 설명 가능"
+            ]
+        elif stage == "심화":
+            return [
+                f"{subject} 고급 기법 종합 평가 85% 이상 달성",
+                f"복합적 {main_keyword} 프로젝트를 시간 내 완성",
+                f"창의적 문제 해결 과제 성공적 수행"
+            ]
+        else:  # 완성
+            return [
+                f"{subject} 전체 과정 종합 평가 90% 이상 달성",
+                f"최종 포트폴리오 프로젝트 완성 및 발표",
+                f"실무 수준의 {main_keyword} 활용 능력 입증"
+            ]
 
     def _generate_stage_topics(self, stage: str, subject: str, analysis: Dict[str, Any]) -> List[str]:
         """단계별 주제 완전 범용 생성"""
