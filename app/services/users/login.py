@@ -119,7 +119,8 @@ async def token_check(token):
     )
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # 서명이 유효한지 검증
+        # payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # 서명이 유효한지 검증
+        payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'], options={'verify_signature': True})
         userdata = payload.get("sub") # payload: jwt에 들어가는 데이터, sub: 토큰 주인
         print(f'토큰 주인 : {userdata}')
 
@@ -172,7 +173,7 @@ async def update_token(user_data):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='토큰 정보가 맞지 않습니다.')
 
     else:
-        new_access, acc_expires = await create_access(refresh.user_id)
+        new_access, acc_expires = await create_access(str(refresh.user_id))
         # new_refresh, re_expires = await create_refresh(refresh.user_id)
         print(f'새로운 access token 발급 : {new_access}')
         # print(f'새로운 refresh token 발급 : {new_refresh}')
