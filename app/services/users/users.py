@@ -7,7 +7,7 @@ from app.configs.base_config import Google
 from app.dtos.users import User, GetMyInfo
 from app.models.user import UserModel
 from google.oauth2.credentials import Credentials
-from app.services.users.login import decode_token
+from app.services.users.login import decode_token, token_check
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
@@ -34,13 +34,14 @@ async def get_current_user(request: Request):
             detail='access token을 조회할 수 없습니다.'
         )
 
-    payload = decode_token(token)
+    payload = await token_check(token)
+    
     print('payload', payload)
 
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="유효하지 않은 access token 입니다.")
 
-    user_id = payload.get('sub')
+    user_id = payload.id
     print('user_id', user_id)
     user = await UserModel.get_or_none(id=user_id)
     print('user', user)
