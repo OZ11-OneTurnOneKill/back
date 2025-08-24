@@ -26,6 +26,7 @@ async def get_current_user(request: Request):
     """
     # 쿠키에 저장된 토큰을 가져옴
     token = request.cookies.get("access_token")
+    print(token)
     # 토큰 검증
     if not token:
         raise HTTPException( # 토큰이 없을 경우, 에러 발생

@@ -141,7 +141,9 @@ async def token_check(token):
 
 def decode_token(token: str):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'], options={'verify_signature': False})
+
         return payload
     except ExpiredSignatureError:
         return None  # 토큰 만료

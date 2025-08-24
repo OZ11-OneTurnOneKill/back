@@ -26,6 +26,7 @@ async def get_myinfo(user = Depends(get_current_user)):
     """
     유저 정보를 조회하는 라우터.
     """
+    print(user.id)
     return {'id': user.id, 'nickname': user.nickname, 'email': user.email, 'profile_image': user.profile_image_url}
 
 @router.patch('/myinfo')
