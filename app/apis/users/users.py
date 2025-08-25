@@ -56,8 +56,8 @@ async def post_update_token(request: Request,
     """
     access_token = request.cookies.get('access_token')
     print(access_token)
-    payload = jwt.decode(access_token, google.SECRET_KEY, algorithms=['HS256'], options={'verify_signature': True})
-    # payload = decode_token(access_token)
+    # payload = jwt.decode(access_token, google.SECRET_KEY, algorithms=['HS256'], options={'verify_signature': True})
+    payload = decode_token(access_token)
     user_id = payload.get('sub')
     print(user_id)
     # access token 재발급 요청 함수 호출

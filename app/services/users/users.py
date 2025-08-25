@@ -99,7 +99,7 @@ async def get_current_websocket(websocket: WebSocket) -> UserModel:
 
         # 4) 토큰 검증
     try:
-        payload = decode_token(token)
+        payload = token_check(token)
     except Exception:
         raise WebSocketException(code=1008, reason="토큰 디코딩 실패")
 
