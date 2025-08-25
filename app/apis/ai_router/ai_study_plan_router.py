@@ -36,10 +36,9 @@ def get_study_plan_service() -> StudyPlanService:
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=AsyncTaskResponse)
 async def create_study_plan(
-        user_id: int,
         request: StudyPlanRequest,
         study_plan_service: StudyPlanService = Depends(get_study_plan_service),
-        # current_user = Depends(get_current_user),
+        current_user = Depends(get_current_user),
 ) -> AsyncTaskResponse:
     """AI 공부 학습 계획 생성 (챌린지 모드 지원)
 
@@ -53,7 +52,7 @@ async def create_study_plan(
         생성 결과 응답 (챌린지 정보 포함)
     """
     try:
-        # user_id = current_user.id
+        user_id = current_user.id
         logger.info(f"Creating study plan for user {user_id} (challenge: {request.is_challenge})")
 
         # 챌린지 지원 학습계획 생성
@@ -78,8 +77,7 @@ async def create_study_plan(
         )
 
     except ValueError as e:
-        # logger.warning(f"Validation error creating study plan for user {current_user.id}: {str(e)}")
-        logger.warning(f"Validation error creating study plan for user {user_id}: {str(e)}")
+        logger.warning(f"Validation error creating study plan for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=AsyncTaskResponse(
@@ -89,8 +87,7 @@ async def create_study_plan(
             ).dict()
         )
     except Exception as e:
-        # logger.error(f"Error creating study plan for user {current_user.id}: {str(e)}")
-        logger.error(f"Error creating study plan for user {user_id}: {str(e)}")
+        logger.error(f"Error creating study plan for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=AsyncTaskResponse(
@@ -103,12 +100,11 @@ async def create_study_plan(
 
 @router.get("/", response_model=AsyncTaskResponse)
 async def get_user_study_plans(
-        user_id: int,
         limit: int = 10,
         offset: int = 0,
-        # user_id: Optional[int] = None,
+        user_id: Optional[int] = None,
         study_plan_service: StudyPlanService = Depends(get_study_plan_service),
-        # current_user = Depends(get_current_user),
+        current_user = Depends(get_current_user),
 ) -> AsyncTaskResponse:
     """AI 공부 학습 계획 데이터 출력
 
@@ -122,10 +118,9 @@ async def get_user_study_plans(
         사용자의 학습계획 목록
     """
     try:
-        # target_user_id = user_id if user_id is not None else current_user.id
+        target_user_id = user_id if user_id is not None else current_user.id
         study_plans = await study_plan_service.get_user_study_plans(
-            # user_id=target_user_id,
-            user_id=user_id,
+            user_id=target_user_id,
             limit=limit,
             offset=offset
         )
@@ -139,9 +134,8 @@ async def get_user_study_plans(
         )
 
     except Exception as e:
-        # target_user_id = user_id if user_id is not None else current_user.id
-        # logger.error(f"Error fetching study plans for user {target_user_id}: {str(e)}")
-        logger.error(f"Error fetching study plans for user {user_id}: {str(e)}")
+        target_user_id = user_id if user_id is not None else current_user.id
+        logger.error(f"Error fetching study plans for user {target_user_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=AsyncTaskResponse(
@@ -153,10 +147,9 @@ async def get_user_study_plans(
 
 @router.get("/{plan_id}", response_model=AsyncTaskResponse)
 async def get_study_plan_by_id(
-        user_id: int,
         plan_id: int,
         study_plan_service: StudyPlanService = Depends(get_study_plan_service),
-        # current_user = Depends(get_current_user)
+        current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """특정 학습계획 조회 (챌린지 정보 포함)
 
@@ -170,7 +163,7 @@ async def get_study_plan_by_id(
     """
     try:
         # 챌린지 정보 포함 조회
-        # user_id = current_user.id
+        user_id = current_user.id
         study_plan = await study_plan_service.get_study_plan_with_challenge(
             study_plan_id=plan_id,
             user_id=user_id
@@ -222,11 +215,10 @@ async def get_study_plan_by_id(
 
 @router.patch("/{plan_id}/challenge", response_model=AsyncTaskResponse)
 async def update_challenge_progress(
-        user_id: int,
         plan_id: int,
         update_request: ChallengeProgressUpdate,
         study_plan_service: StudyPlanService = Depends(get_study_plan_service),
-        # current_user = Depends(get_current_user)
+        current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """챌린지 진행상황 업데이트
 
@@ -240,7 +232,7 @@ async def update_challenge_progress(
         업데이트된 챌린지 진행상황
     """
     try:
-        # user_id = current_user.id
+        user_id = current_user.id
         challenge_progress = await study_plan_service.update_challenge_progress(
             study_plan_id=plan_id,
             user_id=user_id,
@@ -286,11 +278,10 @@ async def update_challenge_progress(
 
 @router.post("/{plan_id}/challenge/complete", response_model=AsyncTaskResponse)
 async def complete_challenge(
-        user_id: int,
         plan_id: int,
         challenge_image_url: Optional[str] = None,
         study_plan_service: StudyPlanService = Depends(get_study_plan_service),
-        # current_user = Depends(get_current_user)
+        current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """챌린지 완료 처리
 
@@ -304,7 +295,7 @@ async def complete_challenge(
         완료 처리 결과
     """
     try:
-        # user_id = current_user.id
+        user_id = current_user.id
         challenge_progress = await study_plan_service.update_challenge_progress(
             study_plan_id=plan_id,
             user_id=user_id,
@@ -341,11 +332,10 @@ async def complete_challenge(
 
 @router.post("/{plan_id}", response_model=AsyncTaskResponse)
 async def update_study_plan(
-        user_id: int,
         plan_id: int,
         update_data: Dict[str, Any],
         study_plan_service: StudyPlanService = Depends(get_study_plan_service),
-        # current_user = Depends(get_current_user)
+        current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """공부 학습 계획 업데이트 요청
 
@@ -359,7 +349,7 @@ async def update_study_plan(
         업데이트된 학습계획
     """
     try:
-        # user_id = current_user.id
+        user_id = current_user.id
         updated_plan = await study_plan_service.update_study_plan(
             study_plan_id=plan_id,
             user_id=user_id,
@@ -412,10 +402,9 @@ async def update_study_plan(
 
 @router.delete("/{plan_id}", response_model=AsyncTaskResponse)
 async def delete_study_plan(
-        user_id: int,
         plan_id: int,
         study_plan_service: StudyPlanService = Depends(get_study_plan_service),
-        # current_user = Depends(get_current_user)
+        current_user = Depends(get_current_user)
 ) -> AsyncTaskResponse:
     """공부 학습 계획 삭제
 
@@ -428,7 +417,7 @@ async def delete_study_plan(
         삭제 결과
     """
     try:
-        # user_id = current_user.id
+        user_id = current_user.id
         await study_plan_service.delete_study_plan(
             study_plan_id=plan_id,
             user_id=user_id
