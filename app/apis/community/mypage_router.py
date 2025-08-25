@@ -31,15 +31,14 @@ async def my_likes(
 
 @router.get("/myinfo/{post_id}/applications", response_model=ApplicantListResponse) # 신청자 목록
 async def my_applicants(
-        user: int,
         post_id: int,
         status: Optional[Literal["approved", "rejected"]] = Query(None),
         cursor: Optional[int] = Query(None),
         limit: int = Query(5, ge=1, le=30),
-        # current_user = Depends(get_current_user)
+        current_user = Depends(get_current_user)
 ):
     return await service_list_my_study_recruitments(
-        owner_id=user,
+        owner_id=current_user.id,
         post_id=post_id,
         status=status,
         cursor=cursor,
@@ -48,14 +47,13 @@ async def my_applicants(
 
 @router.get("/myinfo/applications", response_model=MyApplicationListResponse) # 신청 결과
 async def my_list_applications(
-        user: int,
         status: Optional[Literal["approved", "rejected"]] = Query(None),
         cursor: Optional[int] = Query(None),
         limit: int = Query(5, ge=1, le=30),
-        # current_user = Depends(get_current_user)
+        current_user = Depends(get_current_user)
 ):
     return await service_list_my_applications(
-        user_id=user,
+        user_id=current_user.id,
         status=status,
         cursor=cursor,
         limit=limit,
