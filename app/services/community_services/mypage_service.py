@@ -1,5 +1,6 @@
 from typing import Optional, List, Any, Dict, Literal
-from app.models.community import PostModel, LikeModel
+from fastapi import HTTPException
+from app.models.community import PostModel, LikeModel, CategoryType, StudyApplicationModel
 
 RequestCategory = Literal["all", "study", "free", "share"]
 
@@ -87,3 +88,82 @@ async def service_list_my_likes(
 
     next_cursor = likes[-1].id if likes else None
     return {"count": len(items), "next_cursor": next_cursor, "items": items}
+
+
+async def service_list_my_study_recruitments(
+    *,
+    owner_id: int,
+    post_id: int,
+    status: Optional[str] = None,
+    cursor: Optional[int] = None,
+    limit: int = 5
+) -> Dict[str, Any]:
+
+    post = await PostModel.get_or_none(id=post_id, category=CategoryType.STUDY)
+    if not post:
+        raise HTTPException(status_code=404, detail="post not found")
+    if post.user_id != owner_id:
+        raise HTTPException(status_code=403, detail="Not the owner of the post")
+
+    qs = StudyApplicationModel.filter(post_id=post_id)
+    if cursor is not None:
+        qs=qs.filter(id__lt=cursor)
+
+    rows = await (
+        qs.select_related("user")
+        .order_by("-id")
+        .limit(limit)
+    )
+
+    items: List[Dict[str, Any]] = []
+    for r in rows:
+        items.append({
+            "application_id": r.id,
+            "applicant_id": r.user.id,
+            "applicant_nickname": getattr(getattr(r, "user", None), "nickname", None),
+            "status": r.status,
+            "applied_at": r.created_at,
+        })
+    next_cursor = next_cursor_by_items(items, key="application_id")
+
+    return {"count": len(items), "next_cursor": next_cursor, "items": items}
+
+
+async def service_list_my_applications(
+    *,
+    user_id: int,
+    status: Optional[str] = None,
+    cursor: Optional[int] = None,
+    limit: int = 5
+) -> Dict[str, Any]:
+
+    qs = StudyApplicationModel.filter(user_id=user_id)
+    if cursor is not None:
+        qs=qs.filter(id__lt=cursor)
+
+    rows = await (
+        qs.select_related("post", "post__user")
+        .order_by("-id")
+        .limit(limit)
+    )
+
+    items: List[Dict[str, Any]] = []
+    for r in rows:
+        p = getattr(r, "post", None)
+        owner = getattr(p, "user", None) if p else None
+        items.append({
+            "application_id": r.id,
+            "post_id": r.post_id,
+            "post_title": getattr(p, "title", None),
+            "post_category": "study",
+            "owner_id": getattr(p, "user_id", None),
+            "owner_nickname": getattr(owner, "nickname", None),
+            "status": r.status,
+            "applied_at": r.created_at,
+            "updated_at": r.updated_at,
+        })
+    next_cursor = next_cursor_by_items(items, key="application_id")
+
+    return {"count": len(items), "next_cursor": next_cursor, "items": items}
+
+
