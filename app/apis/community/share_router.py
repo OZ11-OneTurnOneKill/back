@@ -103,10 +103,10 @@ def _ext_of(name: str) -> str:
     return name.rsplit(".", 1)[-1].lower() if "." in name else ""
 
 @router.post("/post/share/{post_id}/attachments/presigned", response_model=PresignResp)
-async def presign_share_file(post_id: int, body: PresignReq, user: int):    #user = Depends(current_user_dev)
+async def presign_share_file(post_id: int, body: PresignReq, user: int = Query(..., description="테스트용: 작성자 ID를 쿼리로 전달")):    #user = Depends(current_user_dev)
     post = await PostModel.get_or_none(id=post_id, category="share")
     if not post: raise HTTPException(404, "Post not found")
-    if post.user != user: raise HTTPException(403, "Not the author")
+    if post.user_id != user: raise HTTPException(403, "Not the author")
 
     ext = _ext_of(body.filename)
     if ext not in FILE_EXTS or body.content_type not in FILE_MIMES:
