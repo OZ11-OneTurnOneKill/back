@@ -9,7 +9,6 @@ from app.dtos.community_dtos.Community_list_response import CursorListResponse
 from app.models.community import PostModel, CategoryType
 from app.dtos.community_dtos.community_request import (
     ApplicationResponse,
-    ApplicationCreateRequest
 )
 from app.dtos.community_dtos.community_response import StudyPostResponse
 from app.services.community_services.community_get_service import service_list_posts_cursor
@@ -100,8 +99,8 @@ SearchIn = Literal["title", "content", "title_content", "author"]
 
 
 @router.post("/post/{post_id}/study-application", response_model=ApplicationResponse)
-async def apply_to_study(post_id: int, body: ApplicationCreateRequest, user: int):   #current_user=Depends(current_user_dev)
-    return await service_apply_to_study(post_id=post_id, user_id=user, message=body.message)
+async def apply_to_study(post_id: int, user: int):   #current_user=Depends(current_user_dev)
+    return await service_apply_to_study(post_id=post_id, user_id=user)
 
 @router.post("/study-application/{application_id}/approve", response_model=ApplicationResponse)
 async def approve_application(application_id: int, user: int):

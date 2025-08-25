@@ -113,9 +113,9 @@ class CommentUpdateRequest(BaseModel):
     content: constr(max_length=50)
 
 
-class ApplicationCreateRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    message: Optional[str] = None
+# class ApplicationCreateRequest(BaseModel):
+#     model_config = ConfigDict(extra='forbid')
+#     message: Optional[str] = None
 
 
 class ApplicationResponse(BaseModel):

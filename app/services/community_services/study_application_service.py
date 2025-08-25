@@ -20,7 +20,7 @@ def _compose_app(app: StudyApplicationModel) -> dict:
         "updated_at": app.updated_at,
     }
 
-async def service_apply_to_study(*, post_id: int, user_id: int, message: str | None) -> dict:
+async def service_apply_to_study(*, post_id: int, user_id: int) -> dict:
     async with in_transaction() as tx:
         post = await PostModel.get_or_none(id=post_id, category="study").using_db(tx)
         if not post:
@@ -53,19 +53,8 @@ async def service_apply_to_study(*, post_id: int, user_id: int, message: str | N
             using_db=tx,
         )
 
-    note_id = await notify_application(
-        application_id=app.id,
-        post_id=post_id,
-        applicant_id=user_id,
-    )
-
-    return {
-        "application_id": app.id,
-        "post_id": post_id,
-        "status": "pending",
-        "notified": bool(note_id),
-        "message": message or "신청이 접수되었습니다.",
-    }
+    app = await StudyApplicationModel.get(id=app.id)
+    return _compose_app(app)
 
 async def service_approve_application(*, application_id: int, owner_id: int) -> dict:
     note = None
