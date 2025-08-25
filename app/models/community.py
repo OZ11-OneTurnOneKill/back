@@ -188,6 +188,12 @@ class NotificationModel(BaseModel, Model):
         on_delete=fields.CASCADE,
         null=True,
     )
+    actor = fields.ForeignKeyField(
+        "models.UserModel",
+        related_name="notifications_sent",  # 보낸 알림(행동 주체 기준)
+        on_delete=fields.CASCADE,
+        null=True,
+    )
     type = fields.CharEnumField(NotificationType)
     message = fields.CharField(max_length=255, null=False)
     is_read = fields.BooleanField(default=False, null=False)

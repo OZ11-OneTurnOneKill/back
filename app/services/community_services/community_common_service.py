@@ -2,22 +2,18 @@ from typing import Dict, Any, Optional
 from fastapi import HTTPException, status
 from tortoise.transactions import in_transaction
 from tortoise.expressions import F
-from tortoise.exceptions import IntegrityError
-
-from app.core.realtime import notification_broker
 from app.models.community import PostModel, LikeModel, CommentModel, NotificationModel, NotificationType
 from pytz import timezone
 from datetime import datetime
-
+from app.models.user import UserModel
+from app.services.community_services.notification_service import notify_like
 
 KST = timezone("Asia/Seoul")
 
 
-def _val(x):
-    # Enum -> value, 나머지는 안전한 타입으로
-    if hasattr(x, "value"):
-        return x.value
-    return x
+def _cat_val(cat):
+    # Enum/str 모두 안전 처리
+    return getattr(cat, "value", cat)
 
 
 async def service_get_like_info(*, post_id: int, user_id: Optional[int] = None) -> dict:
@@ -30,7 +26,7 @@ async def service_get_like_info(*, post_id: int, user_id: Optional[int] = None) 
 
     res = {
         "post_id": post_id,
-        "category": post.category,
+        "category": _cat_val(post.category),
         "like_count": post.like_count,
     }
     if user_id is not None:
@@ -38,65 +34,54 @@ async def service_get_like_info(*, post_id: int, user_id: Optional[int] = None) 
     return res
 
 async def service_toggle_like_by_post_id(*, post_id: int, user_id: int) -> dict:
-    note_payload = None
+    """
+    - 트랜잭션 내: Like 토글 + like_count 증감
+    - 트랜잭션 밖: 방금 '좋아요'가 된 경우에만 알림 발송 (자기 글이면 스킵)
+    """
+    just_liked = False
+    liked = False
 
     async with in_transaction() as tx:
         post = await PostModel.get_or_none(id=post_id).using_db(tx)
-        if not post:
+        if not post or not post.is_active:
             raise HTTPException(status_code=404, detail="Post not found")
 
         existing = await LikeModel.get_or_none(post_id=post_id, user_id=user_id).using_db(tx)
         if existing:
+            # 좋아요 취소
             await existing.delete(using_db=tx)
-            await PostModel.filter(id=post_id).using_db(tx).update(like_count=F("like_count") - 1)
-            liked, message = False, "unliked"
+            await PostModel.filter(id=post_id).using_db(tx).update(
+                like_count=F("like_count") - 1
+            )
+            liked = False
         else:
+            # 좋아요 생성
             await LikeModel.create(post_id=post_id, user_id=user_id, using_db=tx)
-            await PostModel.filter(id=post_id).using_db(tx).update(like_count=F("like_count") + 1)
-            liked, message = True, "liked"
+            await PostModel.filter(id=post_id).using_db(tx).update(
+                like_count=F("like_count") + 1
+            )
+            liked = True
+            just_liked = True
 
-            # (알림 쓰는 경우) 본인 글이 아니면 저장/푸시
-            if hasattr(post, "user_id") and post.user_id != user_id:
-                try:
-                    note = await NotificationModel.create(
-                        user_id=post.user_id,
-                        post_id=post_id,
-                        application_id=None,
-                        type=_val(NotificationType.like),   # ← Enum 안전 변환
-                        message=f"사용자 {user_id}님이 게시글({post_id})에 좋아요를 눌렀습니다.",
-                        using_db=tx,
-                    )
-                    note_payload = {
-                        "target_user_id": post.user_id,
-                        "data": {
-                            "id": note.id,
-                            "type": _val(note.type),         # ← Enum 안전 변환
-                            "post_id": post_id,
-                            "message": note.message,
-                            "is_read": note.is_read,
-                            "created_at": note.created_at,
-                        },
-                    }
-                except Exception:
-                    note_payload = None
+        # 최신 카운트/필요 필드 재조회
+        post = await PostModel.get(id=post_id).only("like_count", "user_id", "category").using_db(tx)
 
-        # 필요한 필드만 재조회
-        post = await PostModel.get(id=post_id).only("category", "like_count").using_db(tx)
-
-    # 커밋 후 푸시
-    if note_payload:
+    # === 트랜잭션 밖: 알림 ===
+    if just_liked and post.user_id != user_id:
+        # 실패해도 본 로직은 성공이어야 하므로 예외 전파 안 함
         try:
-            await notification_broker.push(note_payload["target_user_id"], note_payload["data"])
+            await notify_like(post_id=post_id, actor_id=user_id)
         except Exception:
             pass
 
     return {
         "post_id": post_id,
-        "category": _val(post.category.value),   # ← Enum이면 .value 로
+        "category": _cat_val(post.category),
         "like_count": post.like_count,
         "liked": liked,
-        "message": message,
+        "message": "liked" if liked else "unliked",
     }
+
 
 async def service_delete_post_by_post_id(*, post_id: int, user_id: int) -> dict:
     async with in_transaction() as tx:
@@ -107,7 +92,7 @@ async def service_delete_post_by_post_id(*, post_id: int, user_id: int) -> dict:
             raise HTTPException(status_code=403, detail="Not the author")
 
         await PostModel.filter(id=post_id).using_db(tx).delete()
-    return {"post_id": post_id, "category": post.category, "message": "deleted"}
+    return {"post_id": post_id, "category": _cat_val(post.category), "message": "deleted"}
 
 
 def compose_comment_response(c: CommentModel) -> dict:
@@ -153,10 +138,20 @@ async def service_create_comment(*, post_id: int, user_id: int, content: str, pa
     return compose_comment_response(c)
 
 async def service_list_comments(*, post_id: int, order: str = "id", offset: int = 0, limit: int = 50) -> Dict[str, Any]:
+    allowed = {"id", "-id", "created_at", "-created_at"}
+    order = order if order in allowed else "id"
+    limit = max(1, min(100, limit))
+
     total = await CommentModel.filter(post_id=post_id).count()
-    rows = await CommentModel.filter(post_id=post_id).select_related("user").order_by(order).offset(offset).limit(limit)
+    rows = (await CommentModel
+            .filter(post_id=post_id)
+            .select_related("user")
+            .order_by(order)
+            .offset(offset)
+            .limit(limit))
     items = [compose_comment_response(r) for r in rows]
     return {"total": total, "count": len(items), "items": items}
+
 
 async def service_update_comment(*, comment_id: int, user_id: int, content: str) -> Dict[str, Any]:
     async with in_transaction() as tx:
