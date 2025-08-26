@@ -116,7 +116,7 @@ async def presign_share_file(post_id: int, body: PresignReq, user = Depends(get_
 
 @router.post("/post/share/{post_id}/attachments/attach")
 async def attach_share_file_api(post_id: int, body: AttachReq,  user = Depends(get_current_user)):   # user = Depends(current_user_dev)
-    return await attach_share_file(post_id=post_id, user_id=user, key=body.key)
+    return await attach_share_file(post_id=post_id, user_id=user.id, key=body.key)
 
 @router.delete("/post/share/{post_id}/attachments/{file_id}")
 async def delete_share_file_api(post_id: int, file_id: int,  user = Depends(get_current_user)):     # user = Depends(current_user_dev)
