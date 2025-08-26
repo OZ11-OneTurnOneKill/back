@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 
 ApplicateStatus = Literal[
+    "pending",
     "approved",
     "rejected",
 ]

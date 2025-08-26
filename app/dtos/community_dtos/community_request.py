@@ -1,5 +1,5 @@
 from typing import Optional, Literal, Annotated, Union
-from pydantic import BaseModel, field_validator, Field, ConfigDict, AliasChoices, constr
+from pydantic import BaseModel, field_validator, Field, ConfigDict, AliasChoices, constr, AliasPath
 from pydantic_core.core_schema import ValidationInfo
 from datetime import datetime
 from app.core.constants import MAX_STUDY_MEMBERS
@@ -18,21 +18,53 @@ class BasePostCreate(BaseModel):
 # ===== 스터디 모집 요청 DTO =====
 class StudyPostCreate(BasePostCreate):
     category: Literal["study"] = "study"
-    recruit_start: datetime
-    recruit_end: datetime
-    study_start: datetime
-    study_end: datetime
-    max_member: int = Field(ge=1,le=MAX_STUDY_MEMBERS)
+
+    recruit_start: datetime = Field(
+        validation_alias=AliasChoices(
+            "recruit_start",
+            AliasPath("study", "recruit_start"),
+            AliasPath("study_recruitment", "recruit_start"),
+        )
+    )
+    recruit_end: datetime = Field(
+        validation_alias=AliasChoices(
+            "recruit_end",
+            AliasPath("study", "recruit_end"),
+            AliasPath("study_recruitment", "recruit_end"),
+        )
+    )
+    study_start: datetime = Field(
+        validation_alias=AliasChoices(
+            "study_start",
+            AliasPath("study", "study_start"),
+            AliasPath("study_recruitment", "study_start"),
+        )
+    )
+    study_end: datetime = Field(
+        validation_alias=AliasChoices(
+            "study_end",
+            AliasPath("study", "study_end"),
+            AliasPath("study_recruitment", "study_end"),
+        )
+    )
+    max_member: int = Field(
+        ge=1, le=MAX_STUDY_MEMBERS,
+        validation_alias=AliasChoices(
+            "max_member",
+            AliasPath("study", "max_member"),
+            AliasPath("study_recruitment", "max_member"),
+        )
+    )
 
     @field_validator("study_end")
-    def validate_study_period(cls, v, info: ValidationInfo):
+    def validate_study_period(cls, v, info):
         start_date = info.data.get("study_start")
         if start_date and v < start_date:
             raise ValueError("스터디 종료일은 시작일 이후여야 합니다")
         return v
 
     @field_validator("recruit_end")
-    def validate_recruit_period(cls, v, info: ValidationInfo):
+    def validate_recruit_period(cls, v, info):
         start_date = info.data.get("recruit_start")
         if start_date and v < start_date:
             raise ValueError("구인 마감일은 시작일 이후여야 합니다")
