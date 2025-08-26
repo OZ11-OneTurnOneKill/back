@@ -36,7 +36,7 @@ async def service_list_my_posts(*, user_id: int, category: str = "all",
 async def service_list_my_likes(
     *,
     user_id: int,
-    category: RequestCategory = "all",
+    category: str = "all",
     cursor: Optional[int] = None,
     limit: int = 6
 ) -> Dict[str, Any]:
