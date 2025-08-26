@@ -91,6 +91,11 @@ app.include_router(users_router)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.error("422 for %s %s :: %s", request.method, request.url.path, exc.errors())
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc: RequestValidationError):
+    logger.error("422 for %s %s :: %s", request.method, request.url, exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 """
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
