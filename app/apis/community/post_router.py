@@ -50,33 +50,34 @@ async def get_post_detail(post_id: int):
 import logging
 logger = logging.getLogger("uvicorn.error")
 
-@router.post("/post", response_model=PostDetailResponse, status_code=status.HTTP_201_CREATED) # 게시글 생성 라우터 / 201로 성공 명시
-async def create_post(body: PostCreateRequest, user: UserModel = Depends(get_current_user)): # body = 요청 dto로 유효성 자동 검사 / user: int = 작성자 명시 (get_current_user) 변경 예정
-    if isinstance(body, StudyPostCreate): # PostCreateRequest가 Union으로 각 카테고리 중 하나로 파싱되면 실제 객체 타입을 보고 해당 서비스로 분기
-        s=body.study
-        return await post_svc.service_create_study_post( # 스터디 모집 게시글에는 모집기간, 스터디기간, 최대인원 과 같은 추가 필드가 있기에 카테고리 별 서로 다른dto/서비스를 호출
-            user_id = user.id,
+@router.post("/post", response_model=PostDetailResponse, status_code=status.HTTP_201_CREATED)
+async def create_post(
+    body: PostCreateRequest,
+    user: UserModel = Depends(get_current_user),
+):
+    if isinstance(body, StudyPostCreate):
+        return await post_svc.service_create_study_post(
+            user_id=user.id,
             title=body.title,
             content=body.content,
-            recruit_start=s.recruit_start,
-            recruit_end=s.recruit_end,
-            study_start=s.study_start,
-            study_end=s.study_end,
-            max_member=s.max_member,
+            recruit_start=body.recruit_start,  # ← flat 접근
+            recruit_end=body.recruit_end,
+            study_start=body.study_start,
+            study_end=body.study_end,
+            max_member=body.max_member,
         )
     elif isinstance(body, FreePostCreate):
         return await post_svc.service_create_free_post(
-            user_id = user.id,
+            user_id=user.id,
             title=body.title,
             content=body.content,
         )
     elif isinstance(body, SharePostCreate):
         return await post_svc.service_create_share_post(
-            user_id = user.id,
+            user_id=user.id,
             title=body.title,
             content=body.content,
         )
-
 
     raise HTTPException(400, "Unsupported category")
 
