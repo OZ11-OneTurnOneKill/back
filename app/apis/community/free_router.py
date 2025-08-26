@@ -109,7 +109,7 @@ async def presign_free_image(
     post = await PostModel.get_or_none(id=post_id, category=CategoryType.FREE)
     if not post:
         raise HTTPException(404, "Post not found")
-    if post.user != user:
+    if post.user_id != user.id:
         raise HTTPException(403, "Not the author")
 
     # MIME 체크 (프론트 실수 방지)
