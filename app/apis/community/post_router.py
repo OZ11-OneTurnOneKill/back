@@ -7,6 +7,7 @@ from app.dtos.community_dtos.community_request import PostCreateRequest, StudyPo
     SharePostCreate, PostUpdateAny
 from app.dtos.community_dtos.community_response import PostDetailResponse, StudyPostResponse, FreePostResponse, \
     SharePostResponse
+from app.models.user import UserModel
 from app.services.community_services.community_common_service import service_delete_post_by_post_id
 from app.services.community_services.community_get_service import service_list_posts_cursor
 from app.services.community_services.post_detail_service import service_get_post_detail
@@ -47,7 +48,7 @@ async def get_post_detail(post_id: int):
     return data
 
 @router.post("/post", response_model=PostDetailResponse, status_code=status.HTTP_201_CREATED) # 게시글 생성 라우터 / 201로 성공 명시
-async def create_post(body: PostCreateRequest, user=Depends(get_current_user)): # body = 요청 dto로 유효성 자동 검사 / user: int = 작성자 명시 (get_current_user) 변경 예정
+async def create_post(body: PostCreateRequest, user: UserModel = Depends(get_current_user)): # body = 요청 dto로 유효성 자동 검사 / user: int = 작성자 명시 (get_current_user) 변경 예정
     try:
         if isinstance(body, StudyPostCreate): # PostCreateRequest가 Union으로 각 카테고리 중 하나로 파싱되면 실제 객체 타입을 보고 해당 서비스로 분기
             return await post_svc.service_create_study_post( # 스터디 모집 게시글에는 모집기간, 스터디기간, 최대인원 과 같은 추가 필드가 있기에 카테고리 별 서로 다른dto/서비스를 호출

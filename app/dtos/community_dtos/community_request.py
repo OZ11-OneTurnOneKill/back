@@ -18,7 +18,6 @@ class BasePostCreate(BaseModel):
 # ===== 스터디 모집 요청 DTO =====
 class StudyPostCreate(BasePostCreate):
     category: Literal["study"] = "study"
-    user_id: int
     recruit_start: datetime
     recruit_end: datetime
     study_start: datetime
@@ -43,13 +42,11 @@ class StudyPostCreate(BasePostCreate):
 # ===== 자유게시판 요청 DTO =====
 class FreePostCreate(BasePostCreate):
     category: Literal["free"] = "free"
-    user_id: int
 
 
 # ===== 자료공유 요청 DTO =====
 class SharePostCreate(BasePostCreate):
     category: Literal["share"] = "share"
-    user_id: int
 
 # 하나로 받기 위한 Discriminated Union (category 기준)
 PostCreateRequest = Annotated[
