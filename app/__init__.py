@@ -1,10 +1,12 @@
 import os
+import logging
 from dotenv import load_dotenv, find_dotenv
-
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 load_dotenv(find_dotenv(), override=False)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from starlette.middleware.sessions import SessionMiddleware
@@ -42,7 +44,7 @@ tags_metadata = [
     {"name": "Kakao", "descriptions": "Kakao 소셜 로그인 API"},
     {"name": "Users", "description": "Users API"},
 ]
-
+logger = logging.getLogger("uvicorn.error")
 app = FastAPI(default_response_class=ORJSONResponse, openapi_tags=tags_metadata)
 
 app.add_middleware(
@@ -85,7 +87,10 @@ app.include_router(google_login)
 app.include_router(kakao_login)
 app.include_router(users_router)
 
-
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error("422 for %s %s :: %s", request.method, request.url.path, exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 """
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
