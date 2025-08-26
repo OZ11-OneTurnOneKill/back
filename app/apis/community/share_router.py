@@ -106,7 +106,7 @@ def _ext_of(name: str) -> str:
 async def presign_share_file(post_id: int, body: PresignReq, user = Depends(get_current_user)):    #user = Depends(current_user_dev)
     post = await PostModel.get_or_none(id=post_id, category="share")
     if not post: raise HTTPException(404, "Post not found")
-    if post.user != user: raise HTTPException(403, "Not the author")
+    if post.user_id != user.id: raise HTTPException(403, "Not the author")
 
     ext = _ext_of(body.filename)
     if ext not in FILE_EXTS or body.content_type not in FILE_MIMES:
