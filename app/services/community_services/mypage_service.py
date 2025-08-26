@@ -8,43 +8,29 @@ def next_cursor_by_items(items: List[dict], key: str) -> Optional[int]:
     return items[-1][key] if items else None
 
 
-async def service_list_my_posts(
-        *,
-        user_id: int,
-        category: RequestCategory = "all",
-        cursor: Optional[int] = None,
-        limit: int = 6
-) -> Dict[str, Any]:
-
-    qs = (
-        PostModel
-        .filter(user_id=user_id, is_active=True)
-        .select_related("user")              # ← 작성자 조인
-    )
-
-    if category and category != "all":
-        qs = qs.filter(category=category)    # ← Post 자체 필드이므로 'category'
-
+async def service_list_my_posts(*, user_id: int, category: str = "all",
+                                cursor: Optional[int] = None, limit: int = 6) -> Dict[str, Any]:
+    qs = PostModel.filter(user_id=user_id, is_active=True)
+    if category != "all":
+        qs = qs.filter(category=category)
     if cursor is not None:
         qs = qs.filter(id__lt=cursor)
 
-    rows = await qs.order_by("-id").limit(limit)
+    # ✅ PostModel에는 post가 없고 user만 있음
+    rows = await qs.select_related("user").order_by("-id").limit(limit)
 
     items = [{
         "id": r.id,
         "category": r.category,
         "title": r.title,
         "author_id": r.user_id,
-        "author_nickname": (r.post.user.nickname if getattr(r.post, "user", None) else None),
+        "author_nickname": getattr(getattr(r, "user", None), "nickname", None),  # ✅ 여기!
         "views": r.view_count,
-        "created_at":r.created_at,
+        "created_at": r.created_at,
     } for r in rows]
 
-    return {
-        "count": len(items),
-        "next_cursor": next_cursor_by_items(items, key="id"),
-        "items":items,
-    }
+    next_cursor = rows[-1].id if rows else None
+    return {"count": len(items), "next_cursor": next_cursor, "items": items}
 
 
 async def service_list_my_likes(
