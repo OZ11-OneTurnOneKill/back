@@ -94,8 +94,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc: RequestValidationError):
-    logger.error("422 for %s %s :: %s", request.method, request.url, exc.errors())
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    logger.error("400 for %s %s :: %s", request.method, request.url, exc.errors())
+    return JSONResponse(status_code=400, content={"detail": exc.errors()})
+
+@app.exception_handler(Exception)
+async def all_exception_handler(request: Request, exc: Exception):
+    logger.exception("500 at %s %s", request.method, request.url)
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 """
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
