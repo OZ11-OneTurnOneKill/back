@@ -14,6 +14,16 @@ aerich = "^0.9.1"
 asyncpg = "^0.30.0"
 python-dotenv = "^1.1.1"
 orjson = "^3.11.1"
+google-api-python-client = "^2.177.0"
+google-auth = "^2.40.3"
+google-auth-oauthlib = "^1.2.2"
+google-auth-httplib2 = "^0.2.0"
+requests = "^2.32.4"
+itsdangerous = "^2.2.0"
+google-generativeai = "^0.3.2"
+boto3 = "^1.40.11"
+awscli = "^1.42.11"
+pyjwt = "^2.10.1"
 
 
 [tool.poetry.group.dev.dependencies]

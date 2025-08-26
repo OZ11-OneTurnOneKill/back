@@ -7,6 +7,18 @@ class CategoryType(str, Enum):
     FREE = "free"
     SHARE = "share"
 
+
+class ApplicationStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
+class NotificationType(str, Enum):
+    application = "application"
+    like = "like"
+
+
 class PostModel(BaseModel, Model):
     user = fields.ForeignKeyField(
         "models.UserModel",
@@ -21,7 +33,8 @@ class PostModel(BaseModel, Model):
     like_count = fields.BigIntField(null=False, default=0)
     comment_count = fields.BigIntField(null=False, default=0)
     is_active = fields.BooleanField(null=False, default=True)
-    deleted_at = fields.DatetimeField(null=True)
+    free_images : fields.ReverseRelation["FreeImageModel"]
+    share_files : fields.ReverseRelation["ShareFileModel"]
     class Meta:
         table = "posts"
 
@@ -65,6 +78,8 @@ class LikeModel(BaseModel, Model):
     )
     class Meta:
         table = "likes"
+        unique_together = (("post", "user"),)
+        indexes = (("post_id",), ("user_id",),)
 
 
 class StudyRecruitmentModel(Model):
@@ -83,25 +98,128 @@ class StudyRecruitmentModel(Model):
         table = "study_recruitments"
 
 
-class FreeBoardModel(Model):
-    post = fields.OneToOneField(
+class FreeImageModel(BaseModel, Model):
+    """자유게시판 이미지 첨부 (1:N)"""
+    post = fields.ForeignKeyField(
         "models.PostModel",
-        related_name="free_board",
+        related_name="free_images",
         on_delete=fields.CASCADE,
-        pk=True
+        index=True,
+        null=False,
     )
-    image_url = fields.TextField(null=True)
+    image_url  = fields.TextField(null=False)
+    image_key  = fields.TextField(null=False)   # S3 key (삭제/교체에 필요)
+    mime_type  = fields.CharField(max_length=100, null=False)
+    size_bytes = fields.BigIntField(null=False)
+
     class Meta:
-        table = "free_boards"
+        table = "free_images"
+        # 조회 패턴 고려: post_id 단건/목록 조회 빠르게, 정렬 키로 id도 함께
+        indexes = (("post_id",), ("post_id", "id"))
+
+    def __str__(self) -> str:
+        return f"<FreeImage id={self.id} post={self.post_id} size={self.size_bytes}>"
 
 
-class DataShareModel(Model):
-    post = fields.OneToOneField(
+class ShareFileModel(BaseModel, Model):
+    """자료공유 파일 첨부 (1:N)"""
+    post = fields.ForeignKeyField(
         "models.PostModel",
-        related_name="data_share",
+        related_name="share_files",
         on_delete=fields.CASCADE,
-        pk=True
+        index=True,
+        null=False,
     )
-    file_url = fields.TextField(null=True)
+    file_url   = fields.TextField(null=False)
+    file_key   = fields.TextField(null=False)
+    mime_type  = fields.CharField(max_length=150, null=False)
+    size_bytes = fields.BigIntField(null=False)
+
     class Meta:
-        table = "data_shares"
+        table = "share_files"
+        indexes = (("post_id",), ("post_id", "id"))
+
+    def __str__(self) -> str:
+        return f"<ShareFile id={self.id} post={self.post_id} size={self.size_bytes}>"
+
+
+class StudyApplicationModel(BaseModel, Model):
+    post = fields.ForeignKeyField(
+        "models.PostModel",
+        related_name="applications",
+        on_delete=fields.CASCADE,
+        null=False,
+    )
+    user = fields.ForeignKeyField(
+        "models.UserModel",
+        related_name="study_applications",
+        on_delete=fields.CASCADE,
+        null=False,
+    )
+    status = fields.CharEnumField(ApplicationStatus, default=ApplicationStatus.pending.value, null=False)
+
+    class Meta:
+        table = "study_applications"
+        # 같은 유저가 같은 스터디 글에 중복 신청 금지
+        unique_together = (("post", "user"),)
+        # 조회 성능용 인덱스
+        indexes = (("post_id",), ("user_id",), ("status", "post_id"))
+
+    def __str__(self) -> str:
+        return f"<StudyApplication post={self.post_id} user={self.user_id} status={self.status}>"
+
+
+class NotificationModel(BaseModel, Model):
+    user = fields.ForeignKeyField(
+        "models.UserModel",
+        related_name="notifications",
+        on_delete=fields.CASCADE,
+        null=False,
+    )
+    application = fields.ForeignKeyField(
+        "models.StudyApplicationModel",
+        related_name="notifications",
+        on_delete=fields.CASCADE,
+        null=True,
+    )
+    post = fields.ForeignKeyField(
+        "models.PostModel",
+        related_name="notifications",
+        on_delete=fields.CASCADE,
+        null=True,
+    )
+    actor = fields.ForeignKeyField(
+        "models.UserModel",
+        related_name="notifications_sent",  # 보낸 알림(행동 주체 기준)
+        on_delete=fields.CASCADE,
+        null=True,
+    )
+    type = fields.CharEnumField(NotificationType)
+    message = fields.CharField(max_length=255, null=False)
+    is_read = fields.BooleanField(default=False, null=False)
+
+    class Meta:
+        table = "notifications"
+        indexes = (("user_id", "is_read"), ("application_id",), ("post_id",))
+
+    def __str__(self) -> str:
+        return f"<Notification user={self.user_id} app={self.application_id} read={self.is_read}>"
+
+
+class PostViewDailyModel(Model):
+    post = fields.ForeignKeyField(
+        "models.PostModel",
+        related_name="view_dailies",
+        on_delete=fields.CASCADE,
+        null=False,
+    )
+    day = fields.DateField(null=False)
+    views = fields.IntField(null=False, default=0)
+
+    class Meta:
+        table = "post_view_daily"
+        unique_together = (("post", "day"),)      # 같은 글+날짜는 1행
+        indexes = (("day",), ("post_id", "day"))  # 조회/기간 합계용 인덱스
+
+    def __str__(self) -> str:
+        return f"<PostViewDaily post={self.post_id} day={self.day} views={self.views}>"

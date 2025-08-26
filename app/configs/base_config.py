@@ -18,3 +18,35 @@ class Config(BaseSettings):
     DB_USER: str = "postgres"
     DB_PASSWORD: str = "1234"
     DB_NAME: str = "study_with_ai"
+
+class Google(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
+
+    GOOGLE_CLIENT_SECRET: str = 'client_secret'
+    GOOGLE_CLIENT_ID: str = 'client_id'
+    GOOGLE_REDIRECT_URIS: str = 'redirect_uris'
+    GOOGLE_AUTH_URI: str = 'https://accounts.google.com/o/oauth2/auth'
+    GOOGLE_TOKEN_URI: str = 'https://accounts.google.com/o/oauth2/token'
+
+    REDIRECT_URI: str = 'uri'
+    URL: str = 'url'
+
+    SECRET_KEY: str = 'secret'
+    IS_SECURE : bool = True
+    DOMAIN : str = 'evida.site'
+
+class Kakao(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
+    KAKAO_CLIENT_ID :str = 'client'
+    KAKAO_REDIRECT_URI : str = 'uri'
+    KAKAO_DOMAIN : str = 'domain'
+    KAUTH_HOST : str = 'kauth_host'
+    KAPI_HOST : str = 'kapi_host'
+    KAKAO_SECRET_KEY : str
+    KAKAO_KEY : str
+
+class Tokens(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="allow")
+    ACCESS_TOKEN_EXPIRE_MINUTES : int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 1
+

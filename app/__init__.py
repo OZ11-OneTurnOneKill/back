@@ -1,9 +1,131 @@
-from fastapi import FastAPI
-from fastapi.responses import ORJSONResponse
-from app.configs.tortoise_config import initialize_tortoise
-from app.apis.community_router import router as community_router
+import os
+import logging
+from dotenv import load_dotenv, find_dotenv
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+load_dotenv(find_dotenv(), override=False)
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-app = FastAPI(default_response_class=ORJSONResponse)
-app.include_router(community_router)
+from fastapi import FastAPI, APIRouter, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import ORJSONResponse
+from starlette.middleware.sessions import SessionMiddleware
+from app.configs.tortoise_config import initialize_tortoise
+from app.configs.base_config import Google
+# community
+from app.apis.community.study_router import router as study_router
+from app.apis.community.free_router import router as free_router
+from app.apis.community.share_router import router as share_router
+from app.apis.community.like_router import router as like_router
+from app.apis.community.post_router import router as post_router
+from app.apis.community.comment_router import router as comment_router
+from app.apis.community.notification_ws_router import router as ws_router
+from app.apis.community.top5_router import router as top_router
+from app.apis.community.mypage_router import router as my_page_router
+from app.apis.ai_router.ai_study_plan_router import router as ai_study_plan_router
+from app.apis.ai_router.ai_summary_router import router as ai_summary_router
+# user
+from app.apis.users.users import router as users_router
+from app.apis.users.google_login import router as google_login
+from app.apis.users.kakao_login import router as kakao_login
+
+
+tags_metadata = [
+    {"name": "Community · Post", "description": "커뮤니티 게시글 API"},
+    {"name": "Community · Study", "description": "스터디 모집 API"},
+    {"name": "Community · Free",  "description": "잡담 업로드 API"},
+    {"name": "Community · Share", "description": "자료 공유 업로드 API"},
+    {"name": "Community · Comment", "description": "댓글 API"},
+    {"name": "Community · Like", "description": "좋아요 API"},
+    {"name": "Community · Top", "description": "각 커뮤니티 Top5 조회 API"},
+    {"name": "AI Study Plan", "description": "AI 학습 계획 API"},
+    {"name": "AI Summary", "description": "AI 정보 요약 API"},
+    {"name": "Google", "description": "Google 소셜 로그인 API"},
+    {"name": "Kakao", "descriptions": "Kakao 소셜 로그인 API"},
+    {"name": "Users", "description": "Users API"},
+]
+logger = logging.getLogger("uvicorn.error")
+app = FastAPI(default_response_class=ORJSONResponse, openapi_tags=tags_metadata)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8000",
+        "http://localhost:5173",
+        "https://www.evida.site",
+        "https://evida.site",
+        "https://backend.evida.site",
+        "https://eunbin.evida.site",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    max_age=600,                  # (옵션) 프리플라이트 캐시
+)
+
+google = Google()
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=google.SECRET_KEY,
+)
+# community
+app.include_router(post_router)
+app.include_router(study_router)
+app.include_router(free_router)
+app.include_router(share_router)
+app.include_router(like_router)
+app.include_router(comment_router)
+app.include_router(ws_router)
+app.include_router(top_router)
+app.include_router(my_page_router)
+# AI
+app.include_router(ai_study_plan_router)
+app.include_router(ai_summary_router)
+# user
+app.include_router(google_login)
+app.include_router(kakao_login)
+app.include_router(users_router)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error("422 for %s %s :: %s", request.method, request.url.path, exc.errors())
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc: RequestValidationError):
+    logger.error("400 for %s %s :: %s", request.method, request.url, exc.errors())
+    return JSONResponse(status_code=400, content={"detail": exc.errors()})
+
+@app.exception_handler(Exception)
+async def all_exception_handler(request: Request, exc: Exception):
+    logger.exception("500 at %s %s", request.method, request.url)
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
+"""
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    # 인증 없이 접속 가능한 경로 설정
+    public_paths = [
+        '/', '/docs', '/openapi.json', # fastapi
+        '/api/v1/users/auth/google/login', # 구글 소셜 로그인
+        '/api/v1/users/auth/google/login/callback',
+    ]
+
+    if request.url.path in public_paths: # 요청 url과 public paths 비교
+        return await call_next(request)
+    # 로그인 확인
+    token = request.session.get('token')
+    if not token:
+        print('미들웨어에서 토큰 조회 안됨')
+        return RedirectResponse(url='/') # 아니 이거 어디로 보내야하나..?
+    return await call_next(request) # fastapi에서 가지고 있는 함수
+"""
+router = APIRouter()
+
+@router.get('/')
+async def root():
+    return {'시작해볼까':'좋지'}
+
+app.include_router(router)
 
 initialize_tortoise(app=app)

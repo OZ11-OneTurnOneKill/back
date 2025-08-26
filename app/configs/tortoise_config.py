@@ -23,6 +23,7 @@ TORTOISE_ORM = {
                 "user": config.DB_USER,
                 "password": config.DB_PASSWORD,
                 "database": config.DB_NAME,
+                "server_settings": {"timezone": "Asia/Seoul"},
             },
         },
     },

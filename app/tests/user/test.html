@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CORS Test</title>
+</head>
+<body>
+    <h1>CORS Test Page</h1>
+    <p>Open the browser's developer console to see the result.</p>
+
+    <script>
+        fetch('http://localhost:8000/data')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    </script>
+</body>
+</html>

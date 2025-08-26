@@ -1,17 +1,29 @@
-from typing import Optional
-
-from pydantic import BaseModel
+from typing import Optional, List, Literal, Annotated, Union
+from pydantic import BaseModel, Field
 from datetime import datetime
+# === 공통 ===
+StudyLiteral = Literal["study"]
+FreeLiteral  = Literal["free"]
+ShareLiteral = Literal["share"]
 
+BadgeType    = Literal["모집중", "모집완료"]
 
-# ===== (테스트용) 공통 게시글 응답 DTO =====
-# class CommonPostResponse(BaseModel):
-#     title: str
-#     content: str
-#     category: str
+# ----- 첨부 스키마 -----
+class FreeImageOut(BaseModel):
+    id: int
+    image_url: str
+    mime_type: str
+    size_bytes: int
+    created_at: datetime
 
+class ShareFileOut(BaseModel):
+    id: int
+    file_url: str
+    mime_type: str
+    size_bytes: int
+    created_at: datetime
 
-# ===== 스터디 모집 응답 DTO =====
+# ----- 스터디 상세 -----
 class StudyRecruitmentResponse(BaseModel):
     recruit_start: datetime
     recruit_end: datetime
@@ -19,58 +31,68 @@ class StudyRecruitmentResponse(BaseModel):
     study_end: datetime
     max_member: int
 
-
 class StudyPostResponse(BaseModel):
     id: int
     title: str
     content: str
-    category: str
+    category: StudyLiteral
     author_id: int
+    author_nickname: Optional[str] = None
     views: int
+    like_count: int
+    comment_count: int
     study_recruitment: StudyRecruitmentResponse
     created_at: datetime
     updated_at: datetime
+    badge: Optional[BadgeType] = None
 
-
-# ===== 자유게시판 응답 DTO =====
-class FreeBoardResponse(BaseModel):
-    image_url: Optional[str] = None
-
-
+# ----- 자유게시판 상세 -----
 class FreePostResponse(BaseModel):
     id: int
     title: str
     content: str
-    category: str
+    category: FreeLiteral
     author_id: int
+    author_nickname: Optional[str] = None
     views: int
-    free_board: FreeBoardResponse
+    like_count: int
+    comment_count: int
+    images: List[FreeImageOut] = []
     created_at: datetime
     updated_at: datetime
 
-
-# ===== 자료공유 응답 DTO =====
-class DataShareResponse(BaseModel):
-    file_url: str
-
-
+# ----- 자료공유 상세 -----
 class SharePostResponse(BaseModel):
     id: int
     title: str
     content: str
-    category: str
+    category: ShareLiteral
     author_id: int
+    author_nickname: Optional[str] = None
     views: int
-    data_share: DataShareResponse
+    like_count: int
+    comment_count: int
+    files: List[ShareFileOut] = []
     created_at: datetime
     updated_at: datetime
-
 
 class CommentResponse(BaseModel):
     id: int
     post_id: int
     content: str
     author_id: int
+    author_nickname: Optional[str] = None
     parent_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+
+
+class CommentListResponse(BaseModel):
+    total: int
+    count: int
+    items: list[CommentResponse]
+
+PostDetailResponse = Annotated[
+    Union[StudyPostResponse, FreePostResponse, SharePostResponse],
+    Field(discriminator="category")
+]

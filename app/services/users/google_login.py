@@ -1,0 +1,230 @@
+"""
+# app/services/user/google_login.py
+Google 소셜 로그인 구현 api service logic 관리 파일입니다.
+소셜 로그인 관련 라우터는 `apis/` 폴더에 작성했습니다.
+"""
+import asyncio
+import httpx
+import json
+from app.configs.base_config import Google
+from app.models.user import UserModel
+from app.services.users.login import revoke_refresh
+from concurrent.futures.thread import ThreadPoolExecutor
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import Flow # 사용자 승인
+from fastapi import Request, HTTPException
+from fastapi.responses import RedirectResponse, JSONResponse
+
+from app.services.users.users import get_or_create_google
+
+google = Google() # base config 호출
+
+client_config = {
+    'web': {
+        'client_id': google.GOOGLE_CLIENT_ID,
+        'client_secret': google.GOOGLE_CLIENT_SECRET,
+        'auth_uri': google.GOOGLE_AUTH_URI,
+        'token_uri': google.GOOGLE_TOKEN_URI,
+        'redirect_uri': google.GOOGLE_REDIRECT_URIS,
+    }
+}
+"""
+0Auth2.0을 활용 구글 소셜 로그인 구현.
+구글 공식 문서에 제공 되어있는 코드를 참고해서 작성.
+"""
+
+async def create_authorization_url(request: Request):
+    """
+    이 서비스(app)가 Google OAuth2.0를 통해 사용자를 대신해 API 요청을 실행하기 위한 동의를 받음.
+    google로 부터 어떠한 유저 데이터를 받는지, 받은 데이터를 사용하는 app(서비스)에 대한 정보를 담아 요청한다.
+    """
+
+    # 데이터 생성
+    # 사용자 인증 정보를 만든 후, 다운 받은 client_secret.json 파일 정보를 사용, 애플리케이션 식별하는 flow 객체를 만든다.
+    flow = Flow.from_client_config(
+        client_config=client_config, # client, 이 app 관련 데이터 정보
+        scopes=[  # 어떤 정보에 접근을 할 수 있는지 지정
+            'https://www.googleapis.com/auth/userinfo.email',  # 기본 Google 계정 이메일 주소
+            'https://www.googleapis.com/auth/userinfo.profile',  # 공개로 설정한 개인정보 전부 포함이 된 프로필
+            'openid'  # google에서 내 개인 정보를 나와 연결, 사용자 정보와 연관된 고유한 식별자 ID 발급.
+        ]
+    )
+
+    # 리디렉션할 위치 지정 (어디로 받을지)
+    flow.redirect_uri = google.REDIRECT_URI # 로그인을 처리할 callback 주소
+
+    # Google OAuth 2.0 서버 요청을 위한 URL 생성, kwargs 사용해 선택적 요청 매개변수 설정.
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',  # 엑세스 토큰을 새로 고칠 수 있다, access_token과 refresh_token 발급
+        include_granted_scopes='true',  # 애플리케이션이 이미 사용자에게 특정 권한을 동의 받았지만, 추가적인 권한을 요청할 때 사용.
+        prompt='consent',  # 사용자에게 동의를 요청
+    )
+
+    request.session['state'] = state # 세션에 저장
+
+    # 세션에 저장 되었는지 확인
+    cat_session = request.session.get('state')
+    print('state 값 생성 되었나? : ', cat_session)
+
+    # CSRF 공격 방지 위해 state 값을 세션에 저장하는 로직 필요 ????
+
+    return authorization_url
+
+# state 기능이 있다..? 라이브러리에...?,
+#   -> google_auth_oauthlib에 기본적으로 가지고 있다고 함.
+
+
+# access token 교환
+def fetch_token(flow: Flow, authorization_response:str): # 동기 함수 분리
+    """
+    # flow.fetch_token 메서드 사용, 해당 응답의 승인코드를 토큰으로 교환
+    """
+    flow.fetch_token(authorization_response=authorization_response) # 함수 호출 (동기식)
+    return flow.credentials
+
+async def access_token(request: Request):
+    """
+    클라이언트(app)이 유저의 데이터에 접근을 하기 위해서는 access token을 받아서 재요청을 해야한다.
+    받은 데이터를 세션에 저장해 보관한다.
+
+    session에 저장되는 정보
+    - state
+    - credentials
+    - provider_id
+    """
+    # 승인 서버 응답 확인
+    try:
+        state = request.session['state']
+    except KeyError:
+        return {'error': 'Session을 찾지 못했습니다.'}
+
+    flow = Flow.from_client_config(
+        client_config=client_config,
+        scopes=[  # 어떤 정보에 접근을 할 수 있는지 지정
+            'https://www.googleapis.com/auth/userinfo.email',  # 기본 Google 계정 이메일 주소
+            'https://www.googleapis.com/auth/userinfo.profile',  # 공개로 설정한 개인정보 전부 포함이 된 프로필
+            'openid'  # google에서 내 개인 정보를 나와 연결, 사용자 정보와 연관된 고유한 식별자 ID 발급.
+        ],
+        state=state, # flow에 client_secrets 파일과 scopes와 state를 담아 전달.
+        redirect_uri=google.REDIRECT_URI
+    )
+    flow.redirect_uri = request.url_for('callback') # 동적으로 리다이렉트할 url 생성, 구글에게 이 주소로 결과를 보내달라고 요청
+    authorization_response = str(request.url) # 인증 코드를 보냄
+
+    # token 생성, 동기 함수를 비동기로 호출 (ThreadPoolExecutor 사용)
+    executor = ThreadPoolExecutor()
+    credentials = await asyncio.get_running_loop().run_in_executor(executor, fetch_token, flow, authorization_response)
+    print(f'생성된 credentials : {credentials}')
+    request.session['credentials'] = credentials.to_json()
+    print(f'세션에 무사히 저장 완료')
+
+    async with httpx.AsyncClient() as client:
+        user_info_res = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {credentials.token}"}
+        )
+
+        user_info = user_info_res.json()
+
+        provider_id = user_info["id"]  # 구글에서 제공하는 고유 ID
+        request.session['provider_id'] = provider_id
+        print(f'저장된 provider_id : {provider_id}')
+
+    created_user = await get_or_create_google(user_info) # user data를 db에 저장
+    print(f'회원 데이터 : {created_user}')
+
+    return credentials
+
+
+    # 사용자가 부여한 권한 확인하기.
+async def check_granted_scopes(credentials):
+    features = {}
+    if 'https://www.googleapis.com/auth/userinfo.email' in credentials['granted_scopes']:
+        features['email'] = True
+    else:
+        features['email'] = False
+    if 'https://www.googleapis.com/auth/userinfo.profile' in credentials['granted_scopes']:
+        features['profile'] = True
+    else:
+        features['profile'] = False
+
+# credentials = await check_granted_scopes(credentials)
+    # return features
+    return features
+
+# profile data
+async def info(credentials: Credentials): # 구글API에 사용자 정보 요청
+    """
+    `/myinfo`페이지로 유저 데이터를 보낸다.
+        -> 로그인 여부와 처음 api 개발 할때 google에서 제공하는 정보를 그대로 보냈지만 google에 저장되어있지 않는 정보
+        (서비스의 profile 기준상 누락된 데이터)를 보완 및 로직 최적화를 고려 변경.
+         => 사용 되지 않고 있다.
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            'https://www.googleapis.com/oauth2/v2/userinfo',
+            headers={'Authorization': f'Bearer {credentials.token}'}
+        )
+        response.raise_for_status() # 요청 실패할 경우, 예외 발생
+
+        user_info = response.json() # json으로 데이터 받아옴.
+
+        return user_info
+
+# 로그아웃
+async def revoke(request: Request, current_user: UserModel):
+    """
+    유저의 로그아웃 요청시, 세션과 쿠키에 저장된 데이터 무효화와 DB에 상태를 반영한다.
+    - 세션 삭제 및 쿠키에 담겨진 데이터를 삭제.
+    - 구글 로그아웃 API 호출
+    - 설정한 url로 리디렉션 진행 (303)
+        -> 따로 프론트에서 연결 진행함으로 리디렉션 제거
+    """
+    if 'credentials' not in request.session: # 세션에 저장된 데이터가 없을 경우
+        # print('세션 데이터 일치하지 않습니다. 확인 필요.')
+        # response = RedirectResponse(url=google.URL, status_code=303) # 303 : See Other, get으로 요청 전환
+        response = JSONResponse(
+            {'msg' : '로그아웃 완료'}
+        )
+        response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None, domain=google.DOMAIN)
+        return response
+
+    credentials = Credentials.from_authorized_user_info(
+        json.loads(request.session.get('credentials'))
+    ) # 세션에서 데이터를 가져옴.
+
+    # 비동기 HTTP 클라이언트인 httpx를 사용, 로그아웃 API 호출
+    async with httpx.AsyncClient() as client:
+        revoke_response = await client.post(
+            'https://oauth2.googleapis.com/revoke',
+            params={'token': credentials.token},
+            headers={'content-type': 'application/x-www-form-urlencoded'}
+        )
+
+    if 'credentials' in request.session:
+        # del request.session['credentials'] # 세션 삭제
+        request.session.clear()
+
+    # refresh token 무효화
+    await revoke_refresh(current_user)
+
+    # response = RedirectResponse(url=google.URL, status_code=303)  # 303 : See Other, get으로 요청 전환
+    response = JSONResponse(
+        {'msg' : '로그아웃 완료'}
+    )
+    response.delete_cookie(key='access_token', path='/', httponly=True, secure=google.IS_SECURE, samesite=None, domain=google.DOMAIN)
+
+    return response
+
+    # # 응답 상태 코드로 성공/실패 여부 판단
+    # if revoke_response.status_code == 200:
+    #     # 로그아웃 성공 시 세션 데이터 삭제
+    #     request.session.clear()
+    #     # await request.session.update()
+    #     # 성공 메시지 반환 또는 홈으로 리디렉션
+    #     print('로그아웃은 되었는데 여기선 확인을 못하는듯...')
+    #     return response # 로그아웃 성공 시 루트 페이지로 이동.
+    # else:
+    #     # 로그아웃 실패 시 오류 메시지 반환
+    #     return '로그아웃에 문제가 생겼습니다.'
+    # return RedirectResponse(url='/')
