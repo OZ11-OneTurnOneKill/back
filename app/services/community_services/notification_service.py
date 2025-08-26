@@ -106,7 +106,7 @@ async def notify_like(*, post_id: int, actor_id: int) -> Optional[int]:
 
     exists = await NotificationModel.filter(
         user_id=receiver_id,
-        type=NotificationType.LIKE.value,
+        type=NotificationType.like,
         post_id=post_id,
         actor_id=actor_id,
     ).exists()
@@ -115,7 +115,7 @@ async def notify_like(*, post_id: int, actor_id: int) -> Optional[int]:
 
     note = await NotificationModel.create(
         user_id=receiver_id,
-        type=NotificationType.LIKE.value,   # Enum을 그대로 넣어도 되지만 value로 고정
+        type=NotificationType.like,   # Enum을 그대로 넣어도 되지만 value로 고정
         post_id=post_id,
         actor_id=actor_id,
         message="회원님의 글에 좋아요가 달렸어요.",
@@ -148,7 +148,7 @@ async def notify_application(*, application_id: int, post_id: int, applicant_id:
 
     note = await NotificationModel.create(
         user_id=receiver_id,
-        type=NotificationType.APPLICATION.value,
+        type=NotificationType.application,
         application_id=application_id,
         post_id=post_id,
         actor_id=applicant_id,
@@ -187,7 +187,7 @@ async def create_application_status_notification(
         application_id=application_id,
         post_id=post_id,
         actor_id=actor_id,
-        type=NotificationType.APPLICATION.value,  # ← 문자열로 저장 고정
+        type=NotificationType.application,  # ← 문자열로 저장 고정
         message=msg,
         using_db=using_db,
     )
