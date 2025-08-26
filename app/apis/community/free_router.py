@@ -124,7 +124,7 @@ async def presign_free_image(
 
 @router.post("/post/free/{post_id}/attachments/attach")
 async def attach_free_image_api(post_id: int, body: AttachReq, user = Depends(get_current_user)):
-    return await attach_free_image(post_id=post_id, user_id=user, key=body.key)
+    return await attach_free_image(post_id=post_id, user_id=user.id, key=body.key)
 
 @router.delete("/post/free/{post_id}/attachments/{image_id}")
 async def delete_free_image_api(post_id: int, image_id: int, user = Depends(get_current_user)):
