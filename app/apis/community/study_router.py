@@ -100,12 +100,12 @@ SearchIn = Literal["title", "content", "title_content", "author"]
 
 @router.post("/post/{post_id}/study-application", response_model=ApplicationResponse)
 async def apply_to_study(post_id: int,  user = Depends(get_current_user)):   #current_user=Depends(current_user_dev)
-    return await service_apply_to_study(post_id=post_id, user_id=user)
+    return await service_apply_to_study(post_id=post_id, user_id=user.id)
 
 @router.post("/study-application/{application_id}/approve", response_model=ApplicationResponse)
 async def approve_application(application_id: int,  user = Depends(get_current_user)):
-    return await service_approve_application(application_id=application_id, owner_id=user)
+    return await service_approve_application(application_id=application_id, owner_id=user.id)
 
 @router.post("/study-application/{application_id}/reject", response_model=ApplicationResponse)
 async def reject_application(application_id: int,  user = Depends(get_current_user)):
-    return await service_reject_application(application_id=application_id, owner_id=user)
+    return await service_reject_application(application_id=application_id, owner_id=user.id)
