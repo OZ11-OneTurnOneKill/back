@@ -6,6 +6,8 @@ StudyLiteral = Literal["study"]
 FreeLiteral  = Literal["free"]
 ShareLiteral = Literal["share"]
 
+BadgeType    = Literal["모집중", "모집완료"]
+
 # ----- 첨부 스키마 -----
 class FreeImageOut(BaseModel):
     id: int
@@ -42,6 +44,7 @@ class StudyPostResponse(BaseModel):
     study_recruitment: StudyRecruitmentResponse
     created_at: datetime
     updated_at: datetime
+    badge: Optional[BadgeType] = None
 
 # ----- 자유게시판 상세 -----
 class FreePostResponse(BaseModel):

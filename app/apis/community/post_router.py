@@ -1,6 +1,6 @@
 from typing import Optional, Literal, Union
 from datetime import datetime
-from fastapi import APIRouter, Query, HTTPException, status
+from fastapi import APIRouter, Query, HTTPException, status, Depends
 from app.core.constants import PAGE_SIZE
 from app.dtos.community_dtos.Community_list_response import CursorListResponse
 from app.dtos.community_dtos.community_request import PostCreateRequest, StudyPostCreate, FreePostCreate, \
@@ -12,6 +12,7 @@ from app.services.community_services.community_get_service import service_list_p
 from app.services.community_services.post_detail_service import service_get_post_detail
 from app.services.community_services import community_post_service as post_svc
 from app.services.community_services.post_update_service import service_update_post
+from app.services.users.users import get_current_user
 
 router = APIRouter(prefix="/api/v1/community", tags=["Community · Post"]) # 모든 엔드포인트 앞에 공통 접두사(/api/v1/community)가 붙고 문서에는 "Community · Post" 그룹으로 보임
 
@@ -46,11 +47,11 @@ async def get_post_detail(post_id: int):
     return data
 
 @router.post("/post", response_model=PostDetailResponse, status_code=status.HTTP_201_CREATED) # 게시글 생성 라우터 / 201로 성공 명시
-async def create_post(body: PostCreateRequest, user :int): # body = 요청 dto로 유효성 자동 검사 / user: int = 작성자 명시 (get_current_user) 변경 예정
+async def create_post(body: PostCreateRequest, user=Depends(get_current_user)): # body = 요청 dto로 유효성 자동 검사 / user: int = 작성자 명시 (get_current_user) 변경 예정
     try:
         if isinstance(body, StudyPostCreate): # PostCreateRequest가 Union으로 각 카테고리 중 하나로 파싱되면 실제 객체 타입을 보고 해당 서비스로 분기
             return await post_svc.service_create_study_post( # 스터디 모집 게시글에는 모집기간, 스터디기간, 최대인원 과 같은 추가 필드가 있기에 카테고리 별 서로 다른dto/서비스를 호출
-                user_id=user,
+                user_id = user.id,
                 title=body.title,
                 content=body.content,
                 recruit_start=body.recruit_start,
@@ -61,13 +62,13 @@ async def create_post(body: PostCreateRequest, user :int): # body = 요청 dto�
             )
         elif isinstance(body, FreePostCreate):
             return await post_svc.service_create_free_post(
-                user_id=user,
+                user_id = user.id,
                 title=body.title,
                 content=body.content,
             )
         elif isinstance(body, SharePostCreate):
             return await post_svc.service_create_share_post(
-                user_id=user,
+                user_id = user.id,
                 title=body.title,
                 content=body.content,
             )
@@ -85,14 +86,14 @@ async def create_post(body: PostCreateRequest, user :int): # body = 요청 dto�
 async def patch_post(
         post_id: int,
         body: PostUpdateAny,
-        user: int,  # 실제 운영에선: current_user = Depends(get_current_user); user_id = current_user.id
+        user = Depends(get_current_user)
 ):
     payload = body.model_dump(exclude_unset=True) # 요청에서 보내지 않은 필드는 제외해서 수정 / 부분 업데이트의 핵심임
     if not payload: # 빈 patch를 사전에 차단(아무것도 수정을 안함)
         raise HTTPException(status_code=400, detail="No fields to update")
 
     try:
-        return await service_update_post(post_id=post_id, user_id=user, payload=payload)
+        return await service_update_post(post_id=post_id, user_id = user.id, payload=payload)
     except HTTPException:
         raise
     except Exception as e:
@@ -102,5 +103,5 @@ async def patch_post(
 
 
 @router.delete("/post/{post_id}")
-async def delete_post(post_id: int, user: int):
-    return await service_delete_post_by_post_id(post_id=post_id, user_id=user)
+async def delete_post(post_id: int, user = Depends(get_current_user)):
+    return await service_delete_post_by_post_id(post_id=post_id, user_id = user.id)

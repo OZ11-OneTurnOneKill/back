@@ -1,5 +1,6 @@
 from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime
+from fastapi import HTTPException
 from pytz import timezone
 from tortoise.expressions import Q
 from tortoise.functions import Count
@@ -9,8 +10,10 @@ from app.models.community import (
     PostModel,
     StudyRecruitmentModel,
     StudyApplicationModel,
-    ApplicationStatus,
+    ApplicationStatus, CategoryType,
 )
+from app.services.community_services.view_service import service_increment_view
+from app.utils.post_mapper import to_study_response
 
 KST = timezone("Asia/Seoul")
 
@@ -130,3 +133,32 @@ async def service_list_posts_cursor( # 게시글 목록 조회 서비스로직
         "next_cursor": _make_next_cursor(items),
         "items": items,
     }
+
+async def service_get_post_detail(post_id: int):
+    post = await (
+        PostModel.filter(id=post_id, category=CategoryType.STUDY)
+        .select_related("study_recruitment", "user")
+        .first()
+    )
+
+    if not post:
+        raise HTTPException(status_code=404, detail="post not found")
+
+    await service_increment_view(post_id=post_id, category="study")
+    post.view_count += 1
+
+    badge: Optional[str] = None
+    sr = post.study_recruitment
+
+    if sr:
+        approved_count = await StudyApplicationModel.filter(
+            post_id=post_id, status=ApplicationStatus.approved.value
+        ).count()
+        badge = compute_recruit_badge(
+            recruit_start=sr.recruit_start,
+            recruit_end=sr.recruit_end,
+            max_member=sr.max_member,
+            approved_count=approved_count,
+        )
+
+    return to_study_response(post, badge=badge)

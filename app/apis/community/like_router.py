@@ -14,8 +14,8 @@ async def read_like_count(post_id: int):
 
 
 @router.post("/post/{post_id}/like")
-async def toggle_like(post_id: int, user: int):
-    return await service_toggle_like_by_post_id(post_id=post_id, user_id=user)
+async def toggle_like(post_id: int, user = Depends(get_current_user)):
+    return await service_toggle_like_by_post_id(post_id=post_id, user_id=user.id,)
 
 
 

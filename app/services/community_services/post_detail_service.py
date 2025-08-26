@@ -1,6 +1,7 @@
 from typing import Union
 from tortoise.expressions import F
-from app.models.community import PostModel, CategoryType
+from app.models.community import PostModel, CategoryType, StudyApplicationModel, ApplicationStatus
+from app.services.community_services.community_get_service import compute_recruit_badge
 from app.utils.post_mapper import to_study_response, to_free_response, to_share_response
 from app.services.community_services.view_service import service_increment_view
 
@@ -21,7 +22,20 @@ async def service_get_post_detail(post_id: int) -> Union[dict, ...]:
             .select_related("user", "study_recruitment")
             .first()
         )
-        return to_study_response(post)
+        badge = None
+        if post and post.study_recruitment:
+            approved_count = await StudyApplicationModel.filter(
+                post_id=post_id, status=ApplicationStatus.approved.value
+            ).count()
+            sr = post.study_recruitment
+            badge = compute_recruit_badge(
+                recruit_start=sr.recruit_start,
+                recruit_end=sr.recruit_end,
+                max_member=sr.max_member,
+                approved_count=approved_count,
+            )
+
+        return to_study_response(post, badge=badge)
 
     elif base.category == CategoryType.FREE:
         post = await (

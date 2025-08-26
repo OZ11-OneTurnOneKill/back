@@ -103,10 +103,10 @@ def _ext_of(name: str) -> str:
     return name.rsplit(".", 1)[-1].lower() if "." in name else ""
 
 @router.post("/post/share/{post_id}/attachments/presigned", response_model=PresignResp)
-async def presign_share_file(post_id: int, body: PresignReq, user: int = Query(..., description="테스트용: 작성자 ID를 쿼리로 전달")):    #user = Depends(current_user_dev)
+async def presign_share_file(post_id: int, body: PresignReq, user = Depends(get_current_user)):    #user = Depends(current_user_dev)
     post = await PostModel.get_or_none(id=post_id, category="share")
     if not post: raise HTTPException(404, "Post not found")
-    if post.user_id != user: raise HTTPException(403, "Not the author")
+    if post.user != user: raise HTTPException(403, "Not the author")
 
     ext = _ext_of(body.filename)
     if ext not in FILE_EXTS or body.content_type not in FILE_MIMES:
@@ -115,9 +115,9 @@ async def presign_share_file(post_id: int, body: PresignReq, user: int = Query(.
     return s3.presigned_post_strict("share", body.filename, body.content_type, MAX_TOTAL_BYTES_PER_POST)
 
 @router.post("/post/share/{post_id}/attachments/attach")
-async def attach_share_file_api(post_id: int, body: AttachReq, user: int):   # user = Depends(current_user_dev)
+async def attach_share_file_api(post_id: int, body: AttachReq,  user = Depends(get_current_user)):   # user = Depends(current_user_dev)
     return await attach_share_file(post_id=post_id, user_id=user, key=body.key)
 
 @router.delete("/post/share/{post_id}/attachments/{file_id}")
-async def delete_share_file_api(post_id: int, file_id: int, user: int):     # user = Depends(current_user_dev)
+async def delete_share_file_api(post_id: int, file_id: int,  user = Depends(get_current_user)):     # user = Depends(current_user_dev)
     return await delete_share_file(post_id=post_id, user_id=user, file_id=file_id)

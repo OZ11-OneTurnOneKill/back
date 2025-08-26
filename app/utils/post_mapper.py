@@ -7,7 +7,7 @@ from app.dtos.community_dtos.community_response import (
     SharePostResponse, ShareFileOut,
 )
 
-def to_study_response(p: PostModel) -> StudyPostResponse:
+def to_study_response(p: PostModel, badge: Optional[str]) -> StudyPostResponse:
     """
     PostModel(+ study_recruitment, + user) -> StudyPostResponse
     라우터/서비스에서 select_related("study_recruitment", "user")를 붙여주는 걸 권장.
@@ -35,6 +35,7 @@ def to_study_response(p: PostModel) -> StudyPostResponse:
         ),
         created_at=p.created_at,
         updated_at=p.updated_at,
+        badge=badge
     )
 
 async def to_free_response(p: PostModel) -> FreePostResponse:
